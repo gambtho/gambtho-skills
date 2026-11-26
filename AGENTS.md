@@ -55,7 +55,9 @@ of it. Tested with Pi 1.5.2 and Claude Code 2.1.332.
 ```sh
 (
   set -e
-  export PI_CODING_AGENT_DIR="$(mktemp -d)" CLAUDE_CONFIG_DIR="$(mktemp -d)"
+  PI_CODING_AGENT_DIR=$(mktemp -d)
+  CLAUDE_CONFIG_DIR=$(mktemp -d)
+  export PI_CODING_AGENT_DIR CLAUDE_CONFIG_DIR
   pi install git:github.com/gambtho/gambtho-skills@<sha>
   claude plugin marketplace add gambtho/gambtho-skills@<sha>
   claude plugin install gambtho-skills@gambtho-skills --scope user
