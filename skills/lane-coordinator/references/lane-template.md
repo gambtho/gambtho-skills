@@ -59,7 +59,8 @@ if automatic), first action, report.
   publication authority and stop conditions; contradictions fixed first.
 - Standing authority names allowed paths and actions, never blanket approval; stricter
   project stops, WIP limits and end-to-end PR ownership kept.
-- Every bundled path resolved and readable on the recipient host; remote inputs delivered.
+- Every bundled path resolved (harness-notes: Finding the package) and readable on the
+  recipient host; remote inputs delivered.
 - A decision brief was converted once into the canonical executable plan (Task IDs, owned
   files) before implementation.
 - A lighter process only where the project approved it; checks, reviews, checkpoints

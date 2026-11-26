@@ -38,7 +38,8 @@ If instructions conflict, stop and ask the coordinator.
 The review skills, including `pr-closeout`, `pr-text`, and `/second-opinion` and `/adversarial-review` wrappers ship with
 the package. Outside Pi, read `<resolved harness-notes path>` and each skill's `<resolved skills dir>/<name>/SKILL.md`
 (`second-opinion-core` and `adversarial-review` back the wrappers); resolve them to the skill's bundled
-`references/harness-notes.md` and the package's `skills/` directory before delivery. Requirements are unchanged.
+`references/harness-notes.md` and the package's `skills/` directory on the recipient host before delivery
+(harness-notes: Finding the package). Requirements are unchanged.
 Claude Code lanes get cross-family review from `bash <resolved scripts dir>/codex-review.sh <prompt> <out-prefix>`,
 Codex lanes from `claude-review.sh` there; on failure, stop and report.
 

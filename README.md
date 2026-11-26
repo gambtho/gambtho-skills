@@ -1,18 +1,55 @@
-# my — personal Pi package
+# gambtho-skills
 
-Personal prompt templates and skills loaded directly from this dotfiles repository.
+Skills and prompts for coding agents: reviewing pull requests, planning work,
+writing PR text, closing out a PR, and coordinating several agent "lanes" at once.
+It works as a Pi package and as a Claude Code plugin.
 
-## Prompt templates
+- **Claude Code** gets all 15 skills, named `gambtho-skills:<skill>` (for
+  example `/gambtho-skills:pr-closeout`; plain `/pr-closeout` also works when no
+  other skill has that name).
+- **Pi** gets the same 15 skills plus 9 prompt templates (`/polish`, `/fix-pr`, …).
+  The prompts dispatch Pi's named subagents, so they are Pi-only.
 
-- `/adversarial-review` — try to break a PR or diff with two isolated reviewers from different model families.
-- `/cold-read` — check whether a fresh reader understands a document without project context; report only.
-- `/eod` — run the lane coordinator's end-of-day routine for a project.
-- `/weekly` — run the lane coordinator's weekly routine for a project.
-- `/fix-pr` — collect unresolved PR feedback and failing CI, then write an implementation plan.
-- `/polish` — review the diff and project-specific expectations; use `--fix` for high-confidence cleanups.
-- `/polish-pr` — run the conservative polish workflow in an isolated PR worktree.
-- `/review-prs` — batch-review open PRs and retain repository-specific learnings.
-- `/second-opinion` — ask a different GitHub Copilot model to review a spec or plan against the repository.
+Each release is a git tag (`v0.2.0`, …). Install a tag, not `main`, so you
+choose when to update. [CHANGELOG.md](CHANGELOG.md) lists what changed.
+
+## Install
+
+### Claude Code
+
+```sh
+claude plugin marketplace add gambtho/gambtho-skills@v0.2.0
+claude plugin install gambtho-skills@gambtho-skills --scope user
+```
+
+Restart Claude Code. `claude plugin list` shows `gambtho-skills` at `0.2.0`.
+
+### Pi
+
+```sh
+pi install git:github.com/gambtho/gambtho-skills@v0.2.0
+```
+
+Start a new Pi session (or run `/reload`). `pi list` shows the package and the
+folder it was cloned into.
+
+## Update
+
+A pinned tag never moves by itself. To move to a newer tag, replace the pin:
+
+```sh
+# Claude Code
+claude plugin uninstall gambtho-skills@gambtho-skills
+claude plugin marketplace remove gambtho-skills
+claude plugin marketplace add gambtho/gambtho-skills@v0.3.0
+claude plugin install gambtho-skills@gambtho-skills --scope user
+
+# Pi
+pi remove git:github.com/gambtho/gambtho-skills@v0.2.0
+pi install git:github.com/gambtho/gambtho-skills@v0.3.0
+```
+
+To uninstall, run the first two Claude Code lines or the `pi remove` line.
 
 ## Skills
 
@@ -31,6 +68,21 @@ Personal prompt templates and skills loaded directly from this dotfiles reposito
 - `pr-text` — plain-language PR bodies, review comments/replies and issues.
 - `product-owner` — project-specific product strategy conversation and outcome-focused feature briefs.
 - `second-opinion-core` — independent cross-model spec and plan review, backing `/second-opinion`.
+
+## Pi prompt templates
+
+- `/adversarial-review` — try to break a PR or diff with two isolated reviewers from different model families.
+- `/cold-read` — check whether a fresh reader understands a document without project context; report only.
+- `/eod` — run the lane coordinator's end-of-day routine for a project.
+- `/weekly` — run the lane coordinator's weekly routine for a project.
+- `/fix-pr` — collect unresolved PR feedback and failing CI, then write an implementation plan.
+- `/polish` — review the diff and project-specific expectations; use `--fix` for high-confidence cleanups.
+- `/polish-pr` — run the conservative polish workflow in an isolated PR worktree.
+- `/review-prs` — batch-review open PRs and retain repository-specific learnings.
+- `/second-opinion` — ask a different GitHub Copilot model to review a spec or plan against the repository.
+
+Some prompts dispatch Pi subagents by name (`inspector`, `deep`, `review`, `rush`).
+Your Pi setup must define those agents.
 
 ## Project-aware polish
 
@@ -70,12 +122,24 @@ lookup without moving evidence. Tracked guidance and public posts need separate
 authority. Independent P1 findings get disposition/verification records before merge;
 closeout posts where authorized, otherwise supplies a draft for the human.
 
-## Installation
+## Working on this repository
 
-From the dotfiles root:
-
-```bash
-make ai
+```sh
+make check                # validation, claude plugin validate, ShellCheck, Bats, Python tests
+claude --plugin-dir .     # try your working copy in Claude Code
 ```
 
-`ai/pi/settings.json` loads this directory as a local Pi package. Edits take effect after `/reload` or in the next Pi session; no package publication or marketplace registration is needed.
+For Pi, try a working copy in an isolated agent directory, because `pi -e ./`
+adds to an installed copy instead of replacing it:
+
+```sh
+export PI_CODING_AGENT_DIR="$(mktemp -d)"
+pi install "$PWD" && pi
+```
+
+`make check` needs bash, jq, bats, GNU parallel, ripgrep, ShellCheck, Python 3
+and the `claude` CLI. See [AGENTS.md](AGENTS.md) for releases and conventions.
+
+## License
+
+MIT. See [LICENSE.md](LICENSE.md).

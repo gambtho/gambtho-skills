@@ -313,7 +313,7 @@ For each issue, determine:
 
 **Goal**: produce a detailed, actionable markdown file that a developer (or AI agent) can follow step-by-step to resolve every issue.
 
-Read `~/.dotfiles/ai/marketplace/plugins/my/references/fix-pr-plan-template.md` — it has the exact markdown structure to write, plus per-section rules (verbatim quoting of comments, blockquotes for context, omit Conflicting Feedback if no conflicts, etc.).
+Read `references/fix-pr-plan-template.md` in the `gambtho-skills` path from `pi list` — it has the exact markdown structure to write, plus per-section rules (verbatim quoting of comments, blockquotes for context, omit Conflicting Feedback if no conflicts, etc.).
 
 Write the plan to:
 

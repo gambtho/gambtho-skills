@@ -31,11 +31,13 @@ and `pr-text` (PR bodies, review comments/replies and issues).
 
 - **Pi:** the package loads these skills and the `/second-opinion` and
   `/adversarial-review` prompt wrappers.
-- **Claude Code:** read and follow the sibling `SKILL.md` directly, or optionally
-  link each skill directory for discovery (replace `<name>` with a name above):
-  `mkdir -p "$HOME/.claude/skills" && ln -s "$HOME/.dotfiles/ai/marketplace/plugins/my/skills/<name>" "$HOME/.claude/skills/<name>"`.
-  This is manual setup, not an installer step; the Pi prompt wrappers are not
-  Claude Code commands. Resolve sibling paths from the source directory, not the link.
+- **Claude Code:** the `gambtho-skills` plugin loads every skill, so read and follow
+  the sibling `SKILL.md`. Install and update it as the package README says. The Pi
+  prompt wrappers are not Claude Code commands.
+- **Finding the package:** inside Pi or Claude Code, use the loaded skill's directory;
+  both harnesses show it. For any other harness (Codex) or a bare script, use the
+  `gambtho-skills` path that `pi list` prints on the lane's host, for example
+  `bash <pi list path>/skills/lane-coordinator/scripts/codex-review.sh <prompt> <out>`.
 - `pr-closeout` and `polish-core` can use Claude Code's Agent tool for an isolated,
   read-only reviewer; Pi's `inspector`/`deep`/`review` routes and
   `get_subagent_result` are not built-in Claude Code equivalents. Use its native
