@@ -45,6 +45,18 @@ Skills: `adversarial-review`, `blindspot-pass`, `change-explainer`, `cli-ergonom
 One version appears in `package.json`, `.claude-plugin/plugin.json` and the top
 `CHANGELOG.md` heading (`## [x.y.z] - YYYY-MM-DD`). A release PR changes all three;
 `scripts/validate` fails if they differ. Other PRs leave all three alone; the release
-PR writes the changelog entry from their PR descriptions. The owner tags `vX.Y.Z` on `main` only after installing
-that commit with the README's commands and trying it. Installed copies move only when
-their pin changes.
+PR writes the changelog entry from their PR descriptions.
+
+The owner tags `vX.Y.Z` only after trying the release PR's merge commit. Install it with
+the README's commands, using the commit SHA in place of the tag, in a throwaway Pi agent
+dir and Claude config dir:
+
+```sh
+export PI_CODING_AGENT_DIR="$(mktemp -d)" CLAUDE_CONFIG_DIR="$(mktemp -d)"
+pi install git:github.com/gambtho/gambtho-skills@<sha>
+claude plugin marketplace add gambtho/gambtho-skills@<sha>
+claude plugin install gambtho-skills@gambtho-skills --scope user
+pi list && claude plugin details gambtho-skills@gambtho-skills
+```
+
+Installed copies move only when their pin changes.

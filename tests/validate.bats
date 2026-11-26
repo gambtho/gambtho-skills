@@ -192,6 +192,32 @@ run_validator() {
   [[ "$output" == *"must not narrow skills"* ]]
 }
 
+@test "validator reads name and description only from the frontmatter" {
+  make_validator_repo
+  printf -- '---\n---\nname: pr-text\ndescription: body text\n' >"$VALIDATOR_REPO/skills/pr-text/SKILL.md"
+  run_validator
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"pr-text/SKILL.md: missing 'description' in frontmatter"* ]]
+  [[ "$output" == *"pr-text/SKILL.md: missing 'name' in frontmatter"* ]]
+}
+
+@test "validator rejects frontmatter without a closing delimiter" {
+  make_validator_repo
+  printf -- '---\nname: pr-text\ndescription: never closed\n' >"$VALIDATOR_REPO/skills/pr-text/SKILL.md"
+  run_validator
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"pr-text/SKILL.md: missing frontmatter"* ]]
+}
+
+@test "validator rejects a tracked symlink to the parent directory" {
+  make_validator_repo
+  ln -s .. "$VALIDATOR_REPO/parent-link"
+  git -C "$VALIDATOR_REPO" add parent-link
+  run_validator
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"parent-link: tracked symlink resolves outside repository"* ]]
+}
+
 @test "validator rejects a broken tracked symlink" {
   make_validator_repo
   ln -s ../missing "$VALIDATOR_REPO/skills/broken-link"
