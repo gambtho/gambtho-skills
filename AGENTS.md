@@ -48,15 +48,18 @@ One version appears in `package.json`, `.claude-plugin/plugin.json` and the top
 PR writes the changelog entry from their PR descriptions.
 
 The owner tags `vX.Y.Z` only after trying the release PR's merge commit. Install it with
-the README's commands, using the commit SHA in place of the tag, in a throwaway Pi agent
-dir and Claude config dir:
+the README's commands, using the full 40-character commit SHA in place of the tag, in a
+throwaway Pi agent dir and Claude config dir. The subshell keeps your own settings out
+of it. Tested with Pi 1.5.2 and Claude Code 2.1.332.
 
 ```sh
-export PI_CODING_AGENT_DIR="$(mktemp -d)" CLAUDE_CONFIG_DIR="$(mktemp -d)"
-pi install git:github.com/gambtho/gambtho-skills@<sha>
-claude plugin marketplace add gambtho/gambtho-skills@<sha>
-claude plugin install gambtho-skills@gambtho-skills --scope user
-pi list && claude plugin details gambtho-skills@gambtho-skills
+(
+  export PI_CODING_AGENT_DIR="$(mktemp -d)" CLAUDE_CONFIG_DIR="$(mktemp -d)"
+  pi install git:github.com/gambtho/gambtho-skills@<sha>
+  claude plugin marketplace add gambtho/gambtho-skills@<sha>
+  claude plugin install gambtho-skills@gambtho-skills --scope user
+  pi list && claude plugin details gambtho-skills@gambtho-skills
+)
 ```
 
 Installed copies move only when their pin changes.
