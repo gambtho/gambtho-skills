@@ -1,0 +1,246 @@
+#!/usr/bin/env bash
+# Validate the package: prompt and skill frontmatter, the Pi inventory in
+# package.json, the Claude Code manifests, tracked symlinks, and one version
+# across package.json, .claude-plugin/plugin.json and CHANGELOG.md.
+# Usage: scripts/validate [--verbose]
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
+PACKAGE_FILE="$ROOT/package.json"
+PLUGIN_FILE="$ROOT/.claude-plugin/plugin.json"
+MARKETPLACE_FILE="$ROOT/.claude-plugin/marketplace.json"
+CHANGELOG_FILE="$ROOT/CHANGELOG.md"
+PACKAGE_NAME=gambtho-skills
+ERRORS=0
+VERBOSE=false
+
+[[ "${1:-}" == "--verbose" ]] && VERBOSE=true
+
+error() {
+  echo "  ERROR: $1"
+  ERRORS=$((ERRORS + 1))
+}
+info() { $VERBOSE && echo "  OK:    $1" || true; }
+
+resolve_existing_path() {
+  local path="$1" directory base target attempts=0
+  while [ "$attempts" -lt 40 ]; do
+    directory=$(cd -P "$(dirname "$path")" 2>/dev/null && pwd -P) || return 1
+    base=$(basename "$path")
+    path="$directory/$base"
+    if [ ! -L "$path" ]; then
+      [ -e "$path" ] || return 1
+      printf '%s\n' "$path"
+      return 0
+    fi
+    target=$(readlink "$path") || return 1
+    case "$target" in
+      /*) path=$target ;;
+      *) path="$directory/$target" ;;
+    esac
+    attempts=$((attempts + 1))
+  done
+  return 1
+}
+
+validate_frontmatter() {
+  local file=$1 label=$2 require_name=$3
+  if ! head -1 "$file" | grep -q '^---$'; then
+    error "$label: missing frontmatter"
+    return
+  fi
+  if ! grep -q '^description:' "$file"; then
+    error "$label: missing 'description' in frontmatter"
+  fi
+  if [[ "$require_name" == true ]] && ! grep -q '^name:' "$file"; then
+    error "$label: missing 'name' in frontmatter"
+  fi
+  info "$label"
+}
+
+manifest_inventory() {
+  local kind=$1 pattern=$2 expected_prefix=$3 declared=() actual=() path
+
+  while IFS= read -r path; do
+    declared+=("$path")
+  done < <(jq -r ".pi.${kind}[]?" "$PACKAGE_FILE" | sort)
+
+  while IFS= read -r path; do
+    actual+=("$path")
+  done < <(
+    for file in $pattern; do
+      [ -f "$file" ] || continue
+      printf '%s%s\n' "$expected_prefix" "${file#*\/${kind}/}"
+    done | sort
+  )
+
+  for path in "${declared[@]}"; do
+    case "$kind:$path" in
+      prompts:./prompts/*.md | skills:./skills/*/SKILL.md) ;;
+      *)
+        error "package.json: invalid Pi ${kind%?} path: $path"
+        continue
+        ;;
+    esac
+    if [ ! -f "$ROOT/${path#./}" ]; then
+      error "package.json: declared Pi ${kind%?} does not exist: $path"
+    fi
+  done
+
+  while IFS= read -r path; do
+    [ -n "$path" ] && error "package.json: Pi manifest omits ${kind%?}: $path"
+  done < <(comm -23 <(printf '%s\n' "${actual[@]}") <(printf '%s\n' "${declared[@]}"))
+
+  if [ "${#declared[@]}" -ne "$(printf '%s\n' "${declared[@]}" | sort -u | wc -l)" ]; then
+    error "package.json: Pi $kind inventory contains duplicates"
+  elif [ "$(printf '%s\n' "${declared[@]}")" = "$(printf '%s\n' "${actual[@]}")" ]; then
+    info "package.json: exhaustive Pi $kind inventory"
+  fi
+}
+
+json_field() {
+  jq -r "$2 // empty" "$1" 2>/dev/null || true
+}
+
+echo "=== Validating $PACKAGE_NAME ==="
+
+echo
+echo "Prompts:"
+for prompt in "$ROOT"/prompts/*.md; do
+  [ -f "$prompt" ] || continue
+  validate_frontmatter "$prompt" "$(basename "$prompt")" false
+done
+
+echo
+echo "Skills:"
+for skill_dir in "$ROOT"/skills/*/; do
+  [ -d "$skill_dir" ] || continue
+  skill_name=$(basename "$skill_dir")
+  if [ ! -f "$skill_dir/SKILL.md" ]; then
+    error "$skill_name: missing SKILL.md"
+    continue
+  fi
+  validate_frontmatter "$skill_dir/SKILL.md" "$skill_name/SKILL.md" true
+  if ! grep -qx "name: $skill_name" "$skill_dir/SKILL.md"; then
+    error "$skill_name/SKILL.md: frontmatter name must equal the directory name"
+  fi
+done
+
+echo
+echo "Manifests:"
+if ! command -v jq &>/dev/null; then
+  error "jq is required for manifest validation"
+else
+  manifests_valid=true
+  for manifest in "$PACKAGE_FILE" "$PLUGIN_FILE" "$MARKETPLACE_FILE"; do
+    label=${manifest#"$ROOT/"}
+    if [ ! -f "$manifest" ]; then
+      error "$label: missing"
+      manifests_valid=false
+    elif ! jq empty "$manifest" 2>/dev/null; then
+      error "$label: invalid JSON"
+      manifests_valid=false
+    else
+      info "$label: valid JSON"
+    fi
+  done
+
+  if $manifests_valid; then
+    manifest_inventory prompts "$ROOT/prompts/*.md" "./prompts/"
+    manifest_inventory skills "$ROOT/skills/*/SKILL.md" "./skills/"
+
+    for pair in "package.json:.name" ".claude-plugin/plugin.json:.name" \
+      ".claude-plugin/marketplace.json:.name" ".claude-plugin/marketplace.json:.plugins[0].name"; do
+      value=$(json_field "$ROOT/${pair%%:*}" "${pair#*:}")
+      if [ "$value" != "$PACKAGE_NAME" ]; then
+        error "${pair%%:*}: ${pair#*:} must be $PACKAGE_NAME (found: ${value:-none})"
+      fi
+    done
+    if [ "$(jq '.plugins | length' "$MARKETPLACE_FILE")" != 1 ] ||
+      [ "$(json_field "$MARKETPLACE_FILE" '.plugins[0].source')" != "./" ]; then
+      error ".claude-plugin/marketplace.json: must list exactly one plugin with source \"./\""
+    fi
+    if jq -e '.plugins[0] | has("version")' "$MARKETPLACE_FILE" >/dev/null; then
+      error ".claude-plugin/marketplace.json: keep the version only in plugin.json"
+    fi
+    # Claude Code gets every skill and no prompts (prompts dispatch Pi agents).
+    for key in commands agents hooks mcpServers; do
+      if jq -e --arg key "$key" 'has($key)' "$PLUGIN_FILE" >/dev/null; then
+        error ".claude-plugin/plugin.json: must not declare $key"
+      fi
+    done
+    for dir in commands agents hooks; do
+      [ ! -e "$ROOT/$dir" ] || error "$dir/: Claude Code would load it; prompts stay Pi-only"
+    done
+    if jq -e 'has("skills")' "$PLUGIN_FILE" >/dev/null; then
+      error ".claude-plugin/plugin.json: must not narrow skills; Claude Code loads all of skills/"
+    fi
+  fi
+fi
+
+echo
+echo "Version:"
+package_version=$(json_field "$PACKAGE_FILE" .version)
+plugin_version=$(json_field "$PLUGIN_FILE" .version)
+changelog_version=""
+if [ -f "$CHANGELOG_FILE" ]; then
+  first_heading=$(grep -m1 '^## ' "$CHANGELOG_FILE" || true)
+  heading_pattern='^## \[([0-9]+\.[0-9]+\.[0-9]+)\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$'
+  if [[ "$first_heading" =~ $heading_pattern ]]; then
+    changelog_version=${BASH_REMATCH[1]}
+  else
+    error "CHANGELOG.md: top heading must be '## [x.y.z] - YYYY-MM-DD' (found: ${first_heading:-none})"
+  fi
+else
+  error "CHANGELOG.md: missing"
+fi
+if ! [[ "$package_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  error "package.json: version must be x.y.z (found: ${package_version:-none})"
+elif [ "$plugin_version" != "$package_version" ] || [ "$changelog_version" != "$package_version" ]; then
+  error "version differs: package.json ${package_version}, plugin.json ${plugin_version:-none}, CHANGELOG.md ${changelog_version:-none}"
+else
+  info "one version: $package_version"
+fi
+
+echo
+echo "Tracked symlinks:"
+while IFS= read -r -d '' entry; do
+  metadata=${entry%%$'\t'*}
+  path=${entry#*$'\t'}
+  mode=${metadata%% *}
+  [ "$mode" = 120000 ] || continue
+  link="$ROOT/$path"
+  [ -L "$link" ] || continue
+  target=$(readlink "$link")
+  if [[ "$target" = /* ]]; then
+    error "$path: tracked symlink target must be relative: $target"
+    continue
+  fi
+  resolved_target=$(resolve_existing_path "$(dirname "$link")/$target") || {
+    error "$path: tracked symlink does not resolve: $target"
+    continue
+  }
+  case "$resolved_target" in
+    "$ROOT"/*) info "$path -> $target" ;;
+    *) error "$path: tracked symlink resolves outside repository: $target" ;;
+  esac
+done < <(git -C "$ROOT" ls-files -s -z)
+
+echo
+echo "=== Summary ==="
+prompt_count=$(find -H "$ROOT/prompts" -maxdepth 1 -name '*.md' -type f | wc -l)
+skill_count=$(find "$ROOT/skills" -mindepth 1 -maxdepth 1 -type d | wc -l)
+echo "  Prompts:  $prompt_count"
+echo "  Skills:   $skill_count"
+echo "  Version:  ${package_version:-unknown}"
+echo "  Errors:   $ERRORS"
+
+if [ "$ERRORS" -gt 0 ]; then
+  echo
+  echo "FAILED: $ERRORS errors found"
+  exit 1
+fi
+
+echo
+echo "PASSED"

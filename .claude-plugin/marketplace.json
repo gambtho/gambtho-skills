@@ -1,0 +1,14 @@
+{
+  "name": "gambtho-skills",
+  "owner": {
+    "name": "gambtho"
+  },
+  "plugins": [
+    {
+      "name": "gambtho-skills",
+      "source": "./",
+      "description": "Review, planning, PR and lane-coordination skills"
+    }
+  ],
+  "description": "Review, planning, PR and lane-coordination skills for Claude Code and Pi"
+}

@@ -84,7 +84,7 @@ If this file does not exist, proceed without it. You will suggest creating one i
 
 **Goal**: identify the project's technology stack so the review checklist matches what's actually in the repo.
 
-Read `~/.dotfiles/ai/marketplace/plugins/my/references/review-prs-stack-checklist.md`. It contains:
+Read `references/review-prs-stack-checklist.md` in the `gambtho-skills` path from `pi list`. It contains:
 - A detection table — files/markers that signal each language/framework/convention
 - The universal review checklist (always include)
 - Stack-specific checklists organized by language/framework

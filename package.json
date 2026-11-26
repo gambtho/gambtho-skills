@@ -1,9 +1,11 @@
 {
-  "name": "my",
-  "version": "0.1.0",
-  "description": "Personal Pi prompts and skills",
-  "keywords": ["pi-package"],
-  "author": "guarzo",
+  "name": "gambtho-skills",
+  "version": "0.2.0",
+  "description": "Review, planning, PR and lane-coordination skills for Pi and Claude Code",
+  "keywords": [
+    "pi-package"
+  ],
+  "author": "gambtho",
   "private": true,
   "pi": {
     "prompts": [
@@ -34,5 +36,10 @@
       "./skills/product-owner/SKILL.md",
       "./skills/second-opinion-core/SKILL.md"
     ]
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gambtho/gambtho-skills"
+  },
+  "license": "MIT"
 }

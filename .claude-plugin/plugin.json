@@ -1,0 +1,12 @@
+{
+  "name": "gambtho-skills",
+  "version": "0.2.0",
+  "description": "Review, planning, PR and lane-coordination skills",
+  "author": {
+    "name": "gambtho"
+  },
+  "homepage": "https://github.com/gambtho/gambtho-skills",
+  "repository": "https://github.com/gambtho/gambtho-skills",
+  "license": "MIT",
+  "keywords": ["code-review", "pull-requests", "planning", "skills"]
+}
