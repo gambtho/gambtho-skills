@@ -33,7 +33,7 @@ setup_package_test() {
   export SANDBOX_TOOL_BIN="$TEST_ROOT/tool-bin"
   mkdir -p "$SANDBOX_TOOL_BIN"
   local tool tool_path
-  for tool in jq rg; do
+  for tool in jq rg python3; do
     tool_path="$(resolve_host_tool "$tool")" || continue
     ln -sf "$tool_path" "$SANDBOX_TOOL_BIN/$tool"
   done

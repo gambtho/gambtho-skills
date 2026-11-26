@@ -22,6 +22,6 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y bats jq parallel ripgrep shellcheck
       # `claude plugin validate` reads only the local manifests; no login needed.
       - name: Install Claude Code
-        run: npm install --global --ignore-scripts --no-audit --no-fund @anthropic-ai/claude-code@2.1.332
+        run: npm install --global --no-audit --no-fund @anthropic-ai/claude-code@2.1.332
       - name: Run checks
         run: make check

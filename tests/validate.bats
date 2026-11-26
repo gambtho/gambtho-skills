@@ -26,6 +26,13 @@ write_pi_inventory() {
   edit_json package.json --arg kind "$1" --argjson values "$2" '.pi[$kind] = $values'
 }
 
+# Rewrite a fixture file with sed; portable across GNU and BSD sed (no -i).
+edit_text() {
+  local file="$VALIDATOR_REPO/$1"
+  sed "$2" "$file" >"$file.tmp"
+  mv "$file.tmp" "$file"
+}
+
 run_validator() {
   run bash "$VALIDATOR_REPO/scripts/validate"
 }
@@ -96,7 +103,7 @@ run_validator() {
 
 @test "validator rejects a skill without a name" {
   make_validator_repo
-  sed -i '/^name:/d' "$VALIDATOR_REPO/skills/pr-text/SKILL.md"
+  edit_text skills/pr-text/SKILL.md '/^name:/d'
   run_validator
   [ "$status" -ne 0 ]
   [[ "$output" == *"pr-text/SKILL.md: missing 'name' in frontmatter"* ]]
@@ -104,7 +111,7 @@ run_validator() {
 
 @test "validator rejects a skill whose name differs from its directory" {
   make_validator_repo
-  sed -i 's/^name: pr-text$/name: pr-words/' "$VALIDATOR_REPO/skills/pr-text/SKILL.md"
+  edit_text skills/pr-text/SKILL.md 's/^name: pr-text$/name: pr-words/'
   run_validator
   [ "$status" -ne 0 ]
   [[ "$output" == *"pr-text/SKILL.md: frontmatter name must equal the directory name"* ]]
@@ -112,7 +119,7 @@ run_validator() {
 
 @test "validator rejects a prompt without a description" {
   make_validator_repo
-  sed -i '/^description:/d' "$VALIDATOR_REPO/prompts/polish.md"
+  edit_text prompts/polish.md '/^description:/d'
   run_validator
   [ "$status" -ne 0 ]
   [[ "$output" == *"polish.md: missing 'description' in frontmatter"* ]]
@@ -137,7 +144,7 @@ run_validator() {
 
 @test "validator rejects a changelog heading in another format" {
   make_validator_repo
-  sed -i 's/^## \[\(.*\)\] - .*/## v\1/' "$VALIDATOR_REPO/CHANGELOG.md"
+  edit_text CHANGELOG.md 's/^## \[\(.*\)\] - .*/## v\1/'
   run_validator
   [ "$status" -ne 0 ]
   [[ "$output" == *"CHANGELOG.md: top heading must be"* ]]
