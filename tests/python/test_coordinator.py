@@ -14,6 +14,14 @@ HERE = pathlib.Path(__file__).resolve().parent
 SCRIPT = HERE.parents[1] / 'skills/lane-coordinator/scripts/coordinator.py'
 FIXTURES = HERE / 'fixtures/coordinators'
 TODAY = '2026-11-28'
+GIT_ENV = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
+GIT_ENV.update(GIT_AUTHOR_NAME='Test', GIT_AUTHOR_EMAIL='test@example.invalid',
+               GIT_COMMITTER_NAME='Test', GIT_COMMITTER_EMAIL='test@example.invalid')
+
+
+def dated_git_env(date='2026-10-01T12:00:00Z'):
+    return {**GIT_ENV, 'GIT_AUTHOR_DATE': date, 'GIT_COMMITTER_DATE': date}
+
 
 # A fake `lane`/`gh`: answers from a JSON map of argv to {out, exit}; logs every call.
 FAKE = '''#!/usr/bin/env python3
@@ -59,17 +67,17 @@ class Base(unittest.TestCase):
     def calls(self):
         return [json.loads(line) for line in self.log.read_text().splitlines()] if self.log.exists() else []
 
-    def run_script(self, *args):
+    def run_script(self, *args, env_extra=None):
         env = {**os.environ, 'PATH': f'{self.bin}{os.pathsep}{os.environ["PATH"]}',
-               'FAKE_LOG': str(self.log), 'FAKE_RESPONSES': str(self.responses)}
+               'FAKE_LOG': str(self.log), 'FAKE_RESPONSES': str(self.responses), **(env_extra or {})}
         return subprocess.run([sys.executable, str(SCRIPT), *args], capture_output=True, text=True,
                               env=env, cwd=self.dir, timeout=120, check=False)
 
-    def audit(self, *roots, extra=()):
+    def audit(self, *roots, extra=(), env_extra=None):
         args = ['audit', '--fleet', 'fleet.md', '--today', TODAY, '--json']
         for root in roots:
             args += ['--root', root]
-        result = self.run_script(*args, *extra)
+        result = self.run_script(*args, *extra, env_extra=env_extra)
         self.assertIn(result.returncode, (0, 1), result.stderr)
         return result.returncode, json.loads(result.stdout)
 
@@ -108,8 +116,8 @@ class AuditTests(Base):
 
     def test_well_formed_launch_for_the_wrong_project(self):
         coordination = self.dir / 'clean-local/COORDINATION.md'
-        coordination.write_text(coordination.read_text().replace('--by clean-coord', '--by drifted-coord')
-                                .replace('--label W12', '--label F12'))
+        coordination.write_text(coordination.read_text().replace('--by <project>-coord', '--by drifted-coord')
+                                .replace('--label W<n>', '--label F12'))
         code, doc = self.audit('clean-local')
         self.assertEqual(code, 1)
         [row] = doc['rows']
@@ -148,6 +156,90 @@ class AuditTests(Base):
         os.utime(old, (stamp, stamp))
         self.assertEqual(self.audit('clean-local'), (0, {'version': 1, 'date': TODAY,
                                                           'notes': [], 'rows': []}))
+
+    def test_prompt_age_uses_git_history_for_clean_files_and_can_widen(self):
+        root = self.dir / 'clean-local'
+        prompt = root / 'lanes/W12-fix.md'
+        prompt.write_text('# not one of the required headings\n')
+        subprocess.run(['git', 'init', '-q'], cwd=root, env=GIT_ENV, check=True)
+        subprocess.run(['git', 'add', '.'], cwd=root, env=GIT_ENV, check=True)
+        subprocess.run(['git', 'commit', '-q', '-m', 'old prompt'], cwd=root,
+                       env=dated_git_env(), check=True)
+        stamp = dt.datetime(2026, 11, 28, 12, tzinfo=dt.timezone.utc).timestamp()
+        os.utime(prompt, (stamp, stamp))
+        self.assertEqual(self.audit('clean-local'), (0, {'version': 1, 'date': TODAY,
+                                                        'notes': [], 'rows': []}))
+        code, doc = self.audit('clean-local', env_extra={'GIT_DIR': str(self.tmp / 'missing-git-dir'),
+                                                         'GIT_WORK_TREE': str(root)})
+        self.assertEqual((code, doc['rows']), (0, []))
+        code, doc = self.audit('clean-local', extra=('--prompt-days', '60'))
+        self.assertEqual(code, 1)
+        self.assertEqual([row['check'] for row in doc['rows']], ['prompt-shape'])
+
+    def test_clean_tracked_prompt_symlink_uses_target_mtime(self):
+        root = self.dir / 'clean-local'
+        subprocess.run(['git', 'init', '-q'], cwd=root, env=GIT_ENV, check=True)
+        target = self.tmp / 'target-prompt.md'
+        target.write_text('# malformed symlink target\n')
+        link = root / 'lanes/W14-linked.md'
+        link.symlink_to(os.path.relpath(target, link.parent))
+        subprocess.run(['git', 'add', '.'], cwd=root, env=GIT_ENV, check=True)
+        subprocess.run(['git', 'commit', '-q', '-m', 'old link'], cwd=root,
+                       env=dated_git_env(), check=True)
+        stamp = dt.datetime(2026, 11, 28, 12, tzinfo=dt.timezone.utc).timestamp()
+        os.utime(target, (stamp, stamp))
+        code, doc = self.audit('clean-local')
+        self.assertEqual(code, 1)
+        self.assertEqual([(row['file'], row['check']) for row in doc['rows']],
+                         [('clean-local/lanes/W14-linked.md', 'prompt-shape')])
+
+    def test_ignored_prompt_uses_local_mtime_instead_of_old_git_history(self):
+        root = self.dir / 'clean-local'
+        prompt = root / 'lanes/W16-ignored.md'
+        prompt.write_text('# previously tracked\n')
+        subprocess.run(['git', 'init', '-q'], cwd=root, env=GIT_ENV, check=True)
+        subprocess.run(['git', 'add', '.'], cwd=root, env=GIT_ENV, check=True)
+        subprocess.run(['git', 'commit', '-q', '-m', 'track prompt'], cwd=root,
+                       env=dated_git_env(), check=True)
+        subprocess.run(['git', 'rm', '-q', 'lanes/W16-ignored.md'], cwd=root,
+                       env=GIT_ENV, check=True)
+        (root / '.gitignore').write_text('lanes/W16-ignored.md\n')
+        subprocess.run(['git', 'add', '.gitignore'], cwd=root, env=GIT_ENV, check=True)
+        subprocess.run(['git', 'commit', '-q', '-m', 'ignore prompt'], cwd=root,
+                       env=dated_git_env(), check=True)
+        prompt.write_text('# malformed local prompt\n')
+        stamp = dt.datetime(2026, 11, 28, 12, tzinfo=dt.timezone.utc).timestamp()
+        os.utime(prompt, (stamp, stamp))
+        code, doc = self.audit('clean-local')
+        self.assertEqual(code, 1)
+        self.assertEqual([(row['file'], row['check']) for row in doc['rows']],
+                         [('clean-local/lanes/W16-ignored.md', 'prompt-shape')])
+
+    def test_dangling_prompt_symlink_is_reported_without_crashing(self):
+        link = self.dir / 'clean-local/lanes/W15-dangling.md'
+        link.symlink_to(self.tmp / 'missing-prompt.md')
+        code, doc = self.audit('clean-local')
+        self.assertEqual(code, 1)
+        self.assertEqual([(row['file'], row['check']) for row in doc['rows']],
+                         [('clean-local/lanes/W15-dangling.md', 'prompt-shape')])
+
+    def test_large_prompt_window_is_a_usage_error(self):
+        result = self.run_script('audit', '--root', 'clean-local', '--today', TODAY,
+                                 '--prompt-days', '999999999', '--json')
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn('--prompt-days is too large', result.stderr)
+        self.assertNotIn('Traceback', result.stderr)
+
+    def test_retired_names_come_only_from_fleet_and_explicit_stale(self):
+        code, doc = self.audit('clean-local')
+        self.assertEqual((code, doc['rows']), (0, []))
+        code, doc = self.audit('clean-local', extra=('--stale', 'herdr-lane'))
+        self.assertEqual(code, 1)
+        self.assertEqual([row['check'] for row in doc['rows']], ['stale-fact'])
+
+    def test_launch_line_ignores_angle_bracket_placeholders(self):
+        code, doc = self.audit('clean-local')
+        self.assertEqual((code, doc['rows']), (0, []))
 
     def test_temporary_rule_dates_roll_over_the_year(self):
         agents = self.dir / 'clean-local/AGENTS.md'

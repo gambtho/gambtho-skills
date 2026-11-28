@@ -28,3 +28,4 @@ Last updated: 2026-11-28. Last lane number used: **W12**.
 ## Decisions in force
 
 - D1 (2026-11-20): Rebase only. Full record: DECISIONS.md.
+- D2 (2026-11-27): herdr-lane is the current lane tool.
