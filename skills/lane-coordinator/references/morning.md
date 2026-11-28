@@ -26,9 +26,10 @@ coordinator (folder name with `-local` → `-coord`): `pointer` and `copy` (the 
 at `base-rules.md` and `lane-rules.md` and holds no copied base sentence), `stale-fact`
 (a name from the fleet file's `## Retired` list or `--stale`, on a line that
 doesn't say it is retired or history), `state-shape` and `state-budget` (template sections;
-words against 1,600 or the overlay's lower `STATE budget:`), `prompt-shape` (lane prompts
-with a clean Git commit in the last 7 days, or a recent local mtime, have `# Goal`, `# Scope`,
-`# Done when`, `# Report location` in order; `--prompt-days` widens this window), `launch-line`
+words against 1,600 or the overlay's lower `STATE budget:`), `prompt-shape` (clean tracked
+lane prompts use their Git commit date; local edits, ignored or untracked prompts, and symlinks
+use mtime. Prompts in the last 7 days have `# Goal`, `# Scope`, `# Done when`, `# Report
+location` in order; `--prompt-days` widens this window), `launch-line`
 (`--creation-id`, `--label <prefix><n>`, `--by <project>-coord`; angle-bracket placeholders
 are templates and do not count as real values),
 `friction-age` (open line older than 14 days), `friction-format`, `temp-rule` (an `until

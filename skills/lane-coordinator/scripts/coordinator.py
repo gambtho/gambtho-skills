@@ -19,6 +19,7 @@ import difflib
 import hashlib
 import importlib.util
 import json
+import os
 import pathlib
 import re
 import shutil
@@ -192,6 +193,12 @@ def ranges(numbers: list[int], gap: int = 3) -> list[tuple[int, int, int]]:
     return [(group[0], group[-1], len(group)) for group in groups]
 
 
+def git_environment() -> dict[str, str]:
+    env = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
+    env['GIT_OPTIONAL_LOCKS'] = '0'
+    return env
+
+
 def prompt_date(root: pathlib.Path, path: pathlib.Path) -> dt.date:
     """Use Git age for clean tracked prompts; fall back to mtime for local changes."""
     if path.is_symlink():
@@ -204,11 +211,11 @@ def prompt_date(root: pathlib.Path, path: pathlib.Path) -> dt.date:
     try:
         status = subprocess.run(['git', '-C', str(root), 'status', '--porcelain', '--untracked-files=all',
                                  '--ignored', '--', str(relative)], capture_output=True, text=True, timeout=TIMEOUT,
-                                stdin=subprocess.DEVNULL, check=False)
+                                stdin=subprocess.DEVNULL, env=git_environment(), check=False)
         if status.returncode == 0 and not status.stdout.strip():
             commit = subprocess.run(['git', '-C', str(root), 'log', '-1', '--format=%ct', '--', str(relative)],
                                     capture_output=True, text=True, timeout=TIMEOUT,
-                                    stdin=subprocess.DEVNULL, check=False)
+                                    stdin=subprocess.DEVNULL, env=git_environment(), check=False)
             if commit.returncode == 0 and commit.stdout.strip().isdigit():
                 return dt.datetime.fromtimestamp(int(commit.stdout.strip()), dt.timezone.utc).date()
     except (OSError, subprocess.TimeoutExpired, ValueError):
