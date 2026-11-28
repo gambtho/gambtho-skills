@@ -14,7 +14,7 @@ report a capability blocker rather than silently skipping or replacing them.
 | Durable facts about people and preferences | Auto-memory, one fact per file; STATE.md stays the source of truth for lanes | `session_query` for missing context from a known session file; record durable facts in COORDINATION.md |
 | Worktree writes | Normal git worktrees | The worktree guard blocks writes in primary checkouts; use linked worktrees |
 
-A Hosts row marked `Worker: lane` starts its tasks through developerlanes; the worker
+A host marked `Worker: lane` (in the fleet file, or a Hosts row before migration) starts its tasks through developerlanes; the worker
 enrollment pins the harness, so add no client-side agent flag. Herdr launches, `herdr-lane`
 and manual conversation naming are frozen in [the legacy reference](legacy-herdr.md#harness-and-launch-choice).
 

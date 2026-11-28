@@ -3,11 +3,12 @@
 
 # Scope
 W<n> — `<owner/repo>`: <short title>. Own worktree from a freshly fetched `origin/<base>`.
-Read the project's AGENTS.md, `<resolved project path>/lanes/COMMON-RULES.md`, the repo's
+Read the project's AGENTS.md (its overlay), `<resolved package path>/skills/lane-coordinator/references/lane-rules.md`
+(or, before the project migrates, its `lanes/COMMON-RULES.md`), the repo's
 AGENTS.md and contribution guide, and any effort rules; use the shared workflow's
 prompt-hash and addressed-note checkpoints. Publication follows COORDINATION.md; otherwise
 draft exact text.
-Host: <chosen host>: <reason matched against Hosts `Use for`; local if no row matches>.
+Host: <chosen host>: <reason matched against the fleet file's roles (before migration, the Hosts `Use for`); local if none matches>.
 A host whose `Worker` is `lane` is started and steered through developerlanes; a host without `lane` keeps
 the frozen handoff, notes and session names in the [legacy reference](legacy-herdr.md#handoff-line-and-session-names).
 Context: <why, in a few lines; issue/PR links; what other lanes own and which PRs to stay off>.
@@ -34,7 +35,7 @@ Product (pick one variant, delete the other):
 Maintenance (no user outcome): one green PR. The report claims no outcome.
 LOCAL or publication-held work: local checks pass; report status and blockers, not a PR gate.
 
-# Report
+# Report location
 One report at `<local report path>`, or ONE batched real blocker. A summary of at most ten
 lines opens it: first the try result (`works` / `doesn't` / `not tried (why)`, or
 `maintenance`), then PR, head, CI at that head, ready or blocked, next action and owner,
@@ -57,6 +58,8 @@ if automatic), first action, report.
 - Goal cites an outcome or says Maintenance; off-goal work was stopped and asked about.
 - Prompt agrees with project AGENTS.md, COMMON-RULES and repo rules on worktree,
   publication authority and stop conditions; contradictions fixed first.
+- Each limit says what it protects; sizes and times are estimates unless the human made them
+  caps; stop rules name the failures that count; resource names fit the target host's rules.
 - Standing authority names allowed paths and actions, never blanket approval; stricter
   project stops, WIP limits and end-to-end PR ownership kept.
 - Every bundled path resolved (harness-notes: Finding the package) and readable on the
