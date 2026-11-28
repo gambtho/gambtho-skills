@@ -108,8 +108,8 @@ class AuditTests(Base):
 
     def test_well_formed_launch_for_the_wrong_project(self):
         coordination = self.dir / 'clean-local/COORDINATION.md'
-        coordination.write_text(coordination.read_text().replace('--by clean-coord', '--by drifted-coord')
-                                .replace('--label W12', '--label F12'))
+        coordination.write_text(coordination.read_text().replace('--by <project>-coord', '--by drifted-coord')
+                                .replace('--label W<n>', '--label F12'))
         code, doc = self.audit('clean-local')
         self.assertEqual(code, 1)
         [row] = doc['rows']
@@ -148,6 +148,71 @@ class AuditTests(Base):
         os.utime(old, (stamp, stamp))
         self.assertEqual(self.audit('clean-local'), (0, {'version': 1, 'date': TODAY,
                                                           'notes': [], 'rows': []}))
+
+    def test_prompt_age_uses_git_history_for_clean_files_and_can_widen(self):
+        root = self.dir / 'clean-local'
+        prompt = root / 'lanes/W12-fix.md'
+        prompt.write_text('# not one of the required headings\n')
+        subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+        subprocess.run(['git', 'add', '.'], cwd=root, check=True)
+        env = {**os.environ, 'GIT_AUTHOR_NAME': 'Test', 'GIT_AUTHOR_EMAIL': 'test@example.invalid',
+               'GIT_COMMITTER_NAME': 'Test', 'GIT_COMMITTER_EMAIL': 'test@example.invalid',
+               'GIT_AUTHOR_DATE': '2026-10-01T12:00:00Z',
+               'GIT_COMMITTER_DATE': '2026-10-01T12:00:00Z'}
+        subprocess.run(['git', 'commit', '-q', '-m', 'old prompt'], cwd=root, env=env, check=True)
+        stamp = dt.datetime(2026, 11, 28, 12, tzinfo=dt.timezone.utc).timestamp()
+        os.utime(prompt, (stamp, stamp))
+        self.assertEqual(self.audit('clean-local'), (0, {'version': 1, 'date': TODAY,
+                                                        'notes': [], 'rows': []}))
+        code, doc = self.audit('clean-local', extra=('--prompt-days', '60'))
+        self.assertEqual(code, 1)
+        self.assertEqual([row['check'] for row in doc['rows']], ['prompt-shape'])
+
+    def test_clean_tracked_prompt_symlink_uses_target_mtime(self):
+        root = self.dir / 'clean-local'
+        subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+        target = self.tmp / 'target-prompt.md'
+        target.write_text('# malformed symlink target\n')
+        link = root / 'lanes/W14-linked.md'
+        link.symlink_to(os.path.relpath(target, link.parent))
+        subprocess.run(['git', 'add', '.'], cwd=root, check=True)
+        env = {**os.environ, 'GIT_AUTHOR_NAME': 'Test', 'GIT_AUTHOR_EMAIL': 'test@example.invalid',
+               'GIT_COMMITTER_NAME': 'Test', 'GIT_COMMITTER_EMAIL': 'test@example.invalid',
+               'GIT_AUTHOR_DATE': '2026-10-01T12:00:00Z',
+               'GIT_COMMITTER_DATE': '2026-10-01T12:00:00Z'}
+        subprocess.run(['git', 'commit', '-q', '-m', 'old link'], cwd=root, env=env, check=True)
+        stamp = dt.datetime(2026, 11, 28, 12, tzinfo=dt.timezone.utc).timestamp()
+        os.utime(target, (stamp, stamp))
+        code, doc = self.audit('clean-local')
+        self.assertEqual(code, 1)
+        self.assertEqual([(row['file'], row['check']) for row in doc['rows']],
+                         [('clean-local/lanes/W14-linked.md', 'prompt-shape')])
+
+    def test_dangling_prompt_symlink_is_reported_without_crashing(self):
+        link = self.dir / 'clean-local/lanes/W15-dangling.md'
+        link.symlink_to(self.tmp / 'missing-prompt.md')
+        code, doc = self.audit('clean-local')
+        self.assertEqual(code, 1)
+        self.assertEqual([(row['file'], row['check']) for row in doc['rows']],
+                         [('clean-local/lanes/W15-dangling.md', 'prompt-shape')])
+
+    def test_large_prompt_window_is_a_usage_error(self):
+        result = self.run_script('audit', '--root', 'clean-local', '--today', TODAY,
+                                 '--prompt-days', '999999999', '--json')
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn('--prompt-days is too large', result.stderr)
+        self.assertNotIn('Traceback', result.stderr)
+
+    def test_retired_names_come_only_from_fleet_and_explicit_stale(self):
+        code, doc = self.audit('clean-local')
+        self.assertEqual((code, doc['rows']), (0, []))
+        code, doc = self.audit('clean-local', extra=('--stale', 'herdr-lane'))
+        self.assertEqual(code, 1)
+        self.assertEqual([row['check'] for row in doc['rows']], ['stale-fact'])
+
+    def test_launch_line_ignores_angle_bracket_placeholders(self):
+        code, doc = self.audit('clean-local')
+        self.assertEqual((code, doc['rows']), (0, []))
 
     def test_temporary_rule_dates_roll_over_the_year(self):
         agents = self.dir / 'clean-local/AGENTS.md'

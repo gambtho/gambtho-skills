@@ -27,7 +27,6 @@ import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 REFS = HERE.parent / 'references'
-BUILTIN_STALE = ('herdr-lane',)
 HISTORY = re.compile(r'\b(retired|deleted|history|historical|formerly|replaced|archived?)\b', re.I)
 FRICTION_FORMAT = re.compile(r'^- \d{4}-\d{2}-\d{2}: .+ · .+ · generic\? \([yn]\)\s*$')
 FRICTION_DATE = re.compile(r'^-\s*(?:\*\*)?(?:(\d{4})-)?(\d{2})-(\d{2})\b')
@@ -193,6 +192,34 @@ def ranges(numbers: list[int], gap: int = 3) -> list[tuple[int, int, int]]:
     return [(group[0], group[-1], len(group)) for group in groups]
 
 
+def prompt_date(root: pathlib.Path, path: pathlib.Path) -> dt.date:
+    """Use Git age for clean tracked prompts; fall back to mtime for local changes."""
+    if path.is_symlink():
+        try:
+            modified = path.stat().st_mtime
+        except OSError:
+            modified = path.lstat().st_mtime
+        return dt.datetime.fromtimestamp(modified, dt.timezone.utc).date()
+    relative = path.relative_to(root)
+    try:
+        status = subprocess.run(['git', '-C', str(root), 'status', '--porcelain', '--untracked-files=all',
+                                 '--', str(relative)], capture_output=True, text=True, timeout=TIMEOUT,
+                                stdin=subprocess.DEVNULL, check=False)
+        if status.returncode == 0 and not status.stdout.strip():
+            commit = subprocess.run(['git', '-C', str(root), 'log', '-1', '--format=%ct', '--', str(relative)],
+                                    capture_output=True, text=True, timeout=TIMEOUT,
+                                    stdin=subprocess.DEVNULL, check=False)
+            if commit.returncode == 0 and commit.stdout.strip().isdigit():
+                return dt.datetime.fromtimestamp(int(commit.stdout.strip()), dt.timezone.utc).date()
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        pass
+    return dt.datetime.fromtimestamp(path.stat().st_mtime, dt.timezone.utc).date()
+
+
+def is_placeholder(value: str) -> bool:
+    return bool(re.search(r'<[^>]+>', value))
+
+
 def config_value(root: pathlib.Path, pattern: str) -> str | None:
     text = read(root / 'COORDINATION.md') or ''
     match = re.search(pattern, text, re.M)
@@ -217,9 +244,10 @@ def state_budget(root: pathlib.Path, default: int, override: int | None) -> int:
 
 
 class Audit:
-    def __init__(self, today: dt.date, fleet: dict, stale: list[str], state_words: int | None):
-        self.today, self.fleet, self.state_words = today, fleet, state_words
-        self.stale = sorted(set([*BUILTIN_STALE, *fleet['retired'], *stale]))
+    def __init__(self, today: dt.date, fleet: dict, stale: list[str], state_words: int | None,
+                 prompt_days: int):
+        self.today, self.fleet, self.state_words, self.prompt_days = today, fleet, state_words, prompt_days
+        self.stale = sorted(set([*fleet['retired'], *stale]))
         self.base = base_sentences()
         self.default_state_words = load_morning().WORD_BUDGETS['STATE']
         self.rows: list[dict] = []
@@ -281,11 +309,11 @@ class Audit:
             if words > budget:
                 self.add(rel(state_path), 1, 'state-budget', owner, f'{words}/{budget} words', key='budget')
         lanes = root / 'lanes'
-        cutoff = self.today - dt.timedelta(days=PROMPT_DAYS)
+        cutoff = self.today - dt.timedelta(days=self.prompt_days)
         for path in sorted(lanes.glob('*.md')) if lanes.is_dir() else []:
             if not PROMPT_NAME.match(path.name) or re.search(r'RULES|TEMPLATE|OVERLAY', path.name, re.I):
                 continue
-            if dt.datetime.fromtimestamp(path.stat().st_mtime, dt.timezone.utc).date() < cutoff:
+            if prompt_date(root, path) < cutoff:
                 continue
             lines = (read(path) or '').splitlines()
             found = [next((n for n, line in enumerate(lines, 1) if line.strip() == heading), None)
@@ -309,12 +337,12 @@ class Audit:
                 pattern = rf'{re.escape(prefix)}\d+' if prefix else r'[A-Za-z][A-Za-z-]*\d+'
                 if not label_value:
                     problems.append('no `--label`')
-                elif not label_value[1].startswith('<') and not re.fullmatch(pattern, label_value[1]):
+                elif not is_placeholder(label_value[1]) and not re.fullmatch(pattern, label_value[1]):
                     problems.append(f'`--label {label_value[1]}` is not <prefix><n>' + (f' ({prefix}<n>)' if prefix else ''))
                 by = re.search(r'--by[\s=]+"?([^"\s`]+)', line)
                 if not by:
                     problems.append('no `--by`')
-                elif not by[1].startswith('<') and by[1] != f'{project}-coord':
+                elif not is_placeholder(by[1]) and by[1] != f'{project}-coord':
                     problems.append(f'`--by {by[1]}` is not `{project}-coord`')
                 if problems:
                     self.add(f'{label}/{name}', number, 'launch-line', owner, '; '.join(problems),
@@ -418,7 +446,7 @@ def render_rows(rows: list[dict]) -> str:
 def run_audit(roots: list[pathlib.Path], args, today: dt.date) -> tuple[Audit, list[str]]:
     notes = []
     fleet = fleet_info(args.fleet)
-    audit = Audit(today, fleet, args.stale or [], args.state_words)
+    audit = Audit(today, fleet, args.stale or [], args.state_words, args.prompt_days)
     audit.run_fleet()
     for root in roots:
         owner = args.owner if args.owner and len(roots) == 1 else owner_for(root)
@@ -429,7 +457,7 @@ def run_audit(roots: list[pathlib.Path], args, today: dt.date) -> tuple[Audit, l
     if note:
         notes.append(note)
     if not fleet['path']:
-        notes.append('no --fleet given: retired names limited to the built-in list and --stale')
+        notes.append('no --fleet given: retired names limited to --stale')
     return audit, notes
 
 
@@ -621,6 +649,8 @@ def main(argv: list[str] | None = None) -> int:
     def audit_options(p):
         p.add_argument('--stale', action='append', metavar='WORD', help='extra retired name (repeatable)')
         p.add_argument('--state-words', type=int, help='STATE word budget (default: overlay or 1,600)')
+        p.add_argument('--prompt-days', type=int, default=PROMPT_DAYS,
+                       help=f'check prompts changed within this many days (default: {PROMPT_DAYS})')
         p.add_argument('--lane-review-repo', metavar='OWNER/REPO', help='repo whose open "lane review" PRs to check')
         p.add_argument('--json-out', type=pathlib.Path, help='save the audit rows as JSON (the only write)')
         p.add_argument('--previous', type=pathlib.Path, help="last week's --json-out, to mark repeat rows")
@@ -638,6 +668,13 @@ def main(argv: list[str] | None = None) -> int:
     audit_options(audit)
     audit.add_argument('--json', action='store_true', help='print one JSON document')
     args = parser.parse_args(argv)
+    if hasattr(args, 'prompt_days'):
+        if args.prompt_days < 0:
+            parser.error('--prompt-days must not be negative')
+        try:
+            (args.today or utc_now().date()) - dt.timedelta(days=args.prompt_days)
+        except (OverflowError, ValueError):
+            parser.error('--prompt-days is too large')
 
     if args.command == 'now':
         moment = utc_now()

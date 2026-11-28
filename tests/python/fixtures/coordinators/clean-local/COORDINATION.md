@@ -9,4 +9,4 @@ Last reviewed: 2026-11-27.
 |---|---|---|---|
 | Weekly | `python3 <skill>/scripts/coordinator.py weekly --root . --project example` | 5 min | digest |
 
-Launch: `lane --host worker-a start example --prompt lanes/W12-fix.md --creation-id <uuid> --label W12 --by clean-coord --json`.
+Launch: `lane --host worker-a start example --prompt lanes/W12-fix.md --creation-id <uuid> --label W<n> --by <project>-coord --json`.

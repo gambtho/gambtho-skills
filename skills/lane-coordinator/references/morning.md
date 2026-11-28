@@ -24,11 +24,13 @@ or checker run is unknown and makes the exit code 1.
 `audit` is the weekly drift check. Each row names `file:line`, the check and the owning
 coordinator (folder name with `-local` → `-coord`): `pointer` and `copy` (the overlay points
 at `base-rules.md` and `lane-rules.md` and holds no copied base sentence), `stale-fact`
-(a name from the fleet file's `## Retired` list, `--stale` or `herdr-lane`, on a line that
+(a name from the fleet file's `## Retired` list or `--stale`, on a line that
 doesn't say it is retired or history), `state-shape` and `state-budget` (template sections;
 words against 1,600 or the overlay's lower `STATE budget:`), `prompt-shape` (lane prompts
-changed in the last 7 days have `# Goal`, `# Scope`, `# Done when`, `# Report location` in
-order), `launch-line` (`--creation-id`, `--label <prefix><n>`, `--by <project>-coord`),
+with a clean Git commit in the last 7 days, or a recent local mtime, have `# Goal`, `# Scope`,
+`# Done when`, `# Report location` in order; `--prompt-days` widens this window), `launch-line`
+(`--creation-id`, `--label <prefix><n>`, `--by <project>-coord`; angle-bracket placeholders
+are templates and do not count as real values),
 `friction-age` (open line older than 14 days), `friction-format`, `temp-rule` (an `until
 <date>` that has passed, also in the fleet file) and `lane-review` (with
 `--lane-review-repo`: a "lane review" PR open more than 7 days). Exit 1 means rows were
