@@ -220,14 +220,15 @@ class MorningTests(unittest.TestCase):
         self.assertTrue((self.root / 'STATE-DRIFT.md').exists())
         self.assertTrue((self.root / 'STATE-DRIFT-folders.txt').exists())
         self.assertFalse((self.root / '.morning-last-run').exists())
-        lines = len((self.root / 'STATE.md').read_text().splitlines())
-        self.assertIn(f'STATE-lines={lines}/200\n', (self.root / 'STATE-DRIFT.md').read_text())
+        receipt = (self.root / 'STATE-DRIFT.md').read_text()
+        self.assertIn('STATE=', receipt)
+        self.assertNotIn('STATE-lines', receipt)
 
-    def test_check_flags_state_over_line_target(self):
+    def test_check_flags_state_over_word_budget(self):
         state = self.root / 'STATE.md'
-        state.write_text(state.read_text() + '\n' * (201 - len(state.read_text().splitlines())))
+        state.write_text(state.read_text() + ' word' * 1601)
         self.assertEqual(self.main('--check', '--no-save')[0], 0)
-        self.assertIn('STATE-lines=201/200!', (self.root / 'STATE-DRIFT.md').read_text())
+        self.assertRegex((self.root / 'STATE-DRIFT.md').read_text(), r'STATE=\d+/1600!')
 
     def test_missing_state_keeps_old_receipt(self):
         path = self.root / 'STATE-DRIFT.md'

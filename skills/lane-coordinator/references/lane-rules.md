@@ -1,24 +1,28 @@
-# <project or effort>: shared lane rules
+# Lane rules
 
-<Coordinator: project the Shared workflow section once into the project's
-`lanes/COMMON-RULES.md`, with the heading "Shared lane workflow". It carries every rule
-that holds for any lane. Keep project authority, repo-specific policies and stronger local
-rules in AGENTS.md/COORDINATION.md. Every lane prompt and the project's AGENTS.md name the
-shared file. For a parallel effort's separate rules file, include only Ownership, Open PRs
-to stay off, the Rules for every lane pointer and Sequencing; don't copy the workflow.
-For a project whose hosts are all lane workers, drop the legacy-herdr.md sentence; otherwise resolve its link to a
-verified readable reference on each recipient host when projecting outside this skill.
-Resolve paths and remove these instructions and unused placeholder sections before delivery.
-When relocating rules, create the destination and reconcile affected prompts and STATE in the same update before
-deleting the source. For a running
-lane, amend its prompt file under a dated heading and mark superseded instructions; verify the amended prompt copy is
-observable by the lane and its checkpoint is loaded, or give an explicit reread instruction through an approved channel.
-Mark delivery unknown until confirmed; a local edit or template change is not delivery, and never rerun a start to
-deliver an amendment. Once two lanes PR into one repo, fix files every PR edits (changelog, generated maps, counts)
-before they collide.>
+Every lane reads this file, its project's overlay and its own prompt. The coordinator sends
+this file **as it is**, as one `--input` beside the project's `AGENTS.md` (the overlay) and
+any other overlay file the prompt names; it never copies or rewrites it into a local file.
+A project puts only its real differences in the overlay (for example a rebase-only repo, a
+private-material list or a stricter stop). Where the overlay and this file disagree, the
+overlay wins for that project; a conflict it doesn't settle is a stop. Parallel efforts add
+the effort file at the end of this file, without copying the workflow.
 
-Every lane reads the project-level shared workflow, the project's AGENTS.md and its
-own prompt. Parallel lanes also read their effort rules.
+<Coordinator notes (lanes may skip): until a project migrates, its existing
+`lanes/COMMON-RULES.md` stays in use and its prompts keep naming it; after migration the
+prompts name this file and the overlay instead. When relocating rules, create the
+destination and reconcile affected prompts and STATE in the same update before deleting the
+source. For a running lane, amend its prompt file under a dated heading and mark superseded
+instructions; verify the amended prompt copy is observable by the lane and its checkpoint is
+loaded, or give an explicit reread instruction through an approved channel. Mark delivery
+unknown until confirmed; a local edit or template change is not delivery, and never rerun a
+start to deliver an amendment. Once two lanes PR into one repo, fix files every PR edits
+(changelog, generated maps, counts) before they collide.>
+
+**Finding the package.** Paths below are relative to this skill's folder
+(`skills/lane-coordinator/` in the `gambtho-skills` package). Inside Pi or Claude Code, use
+the loaded skill's directory; elsewhere, the `gambtho-skills` path that `pi list` prints on
+your host. If the package isn't on your host, say so in your report and stop; don't guess a path.
 
 ## Shared workflow
 
@@ -36,12 +40,16 @@ and the human's explicit decisions take precedence. This file changes no publica
 If instructions conflict, stop and ask the coordinator.
 
 The review skills, including `pr-closeout`, `pr-text`, and `/second-opinion` and `/adversarial-review` wrappers ship with
-the package. Outside Pi, read `<resolved harness-notes path>` and each skill's `<resolved skills dir>/<name>/SKILL.md`
-(`second-opinion-core` and `adversarial-review` back the wrappers); resolve them to the skill's bundled
-`references/harness-notes.md` and the package's `skills/` directory on the recipient host before delivery
-(harness-notes: Finding the package). Requirements are unchanged.
-Claude Code lanes get cross-family review from `bash <resolved scripts dir>/codex-review.sh <prompt> <out-prefix>`,
-Codex lanes from `claude-review.sh` there; on failure, stop and report.
+the package. Outside Pi, read `references/harness-notes.md` and each skill's `../<name>/SKILL.md`
+(`second-opinion-core` and `adversarial-review` back the wrappers). Requirements are unchanged.
+Claude Code lanes get cross-family review from `bash scripts/codex-review.sh <prompt> <out-prefix>`,
+Codex lanes from `scripts/claude-review.sh`; on failure, stop and report.
+
+### On a lane worker
+
+- Only your prompt and its `--input` files arrive; the coordinator's other files are not on your host. If the prompt
+  names a file you can't read, ask for it in your report or a question card; don't guess its content.
+- Write your report to the numbered report path your prompt gives, with the file-write tool.
 
 ### Standing review fallback
 
@@ -50,10 +58,21 @@ a current-head Copilot request, `gh` API call or review bot shows a rate limit o
 CodeRabbit fallback; the lane never stalls asking a human to request Copilot. If it cannot run, use one review by a
 different model family. Record `review round: local CodeRabbit CLI (reason)` or the fallback reason in report and PR body.
 
+- The order is fixed: local CodeRabbit, then `codex-review.sh` (Claude Code) or `claude-review.sh` (Codex). Never pass
+  `--use-credits` or any flag that bills the human.
+- CodeRabbit unavailable for any reason (permission block, rate limit, usage limit, plan) means run the fallback and
+  record why; it is never a question for the human.
+- A review prompt carries the reviewer's text and the diff, not the author's claims about it. Ask the reviewer to walk
+  the cases that usually break: another OS, running as root, symlinks, concurrency, interrupts and retries, upgrades.
+  A fix round is reviewed against the whole change, not only the delta.
+
 ### Design, then plan
 
 - New product work starts with a short design, before any plan: the user value, which repo owns it, which existing
   mechanism it extends (or why none fits), and what new packages, rules or refusals it adds.
+- **Setup burden:** a design lists each step a person must do on each machine (once, and after a reboot), and flags
+  any that needs a desktop login, admin rights, a GUI, a browser, or repeating. Each flagged step needs a way to avoid
+  it, or a reason it can't be avoided.
 - Run `/second-opinion` on the design alone, revise, and stop for the human's approval. Then write the plan and run
   `/second-opinion --with-spec` on the plan with its design. A plan reviewed without its design doesn't count.
 - Before reporting a PR ready, follow `pr-closeout`'s one independent review phase; add
@@ -62,8 +81,7 @@ different model family. Record `review round: local CodeRabbit CLI (reason)` or 
 - Work the human already approved continues under its approved design; don't re-gate it. Audit-only work stops at
   its assigned approval gate.
 - Optional: for risky state transitions, consider the owning lane's bounded, human-approved check in
-  `<resolved state-model-check path>` within its existing design stage; resolve that path to the
-  skill's bundled `references/state-model-check.md` before delivery.
+  `references/state-model-check.md` within its existing design stage.
 
 ### Worktrees and pull requests
 
@@ -75,6 +93,8 @@ different model family. Record `review round: local CodeRabbit CLI (reason)` or 
   and passes CI on the combined head before merge.
 - Small PRs, one theme each. Follow `pr-closeout` for scoped review/finalization, preserving publication approval
   and reusing valid review evidence.
+- On an open PR, fix only findings that show the change going the wrong way on something it claims, or a regression it
+  causes anywhere; put the rest in a follow-up issue or your Notes for later. Report each push as a size change (files, lines added and removed).
 - Load the `pr-text` skill when writing PR bodies, review comments/replies and issues.
 - PR publication, replies and other public text follow the authority table in COORDINATION.md. Without permission
   there, draft exact text for the human. Production/provider approvals are unchanged.
@@ -85,7 +105,10 @@ different model family. Record `review round: local CodeRabbit CLI (reason)` or 
   A method grants no push authority. Never force-push anyone else's branch.
   Without project or repo Git policy, never push to a default branch or merge a PR, never rewrite someone else's branch,
   and resolve conflicts by merging the base branch into yours.
+- Before a PR deletes code someone else wrote, ask its author (through the coordinator) unless the prompt says they agreed.
 - No timeout increases as a fix.
+- A known flaky test that drops a run: add the run link to that test's issue and say so in your report. Retry it once
+  at most; a second drop in 7 days is a proposal to quarantine it, not another retry.
 - No tag, release note or note to users until a person has walked the path the release claims to support, without
   workarounds.
 
@@ -97,9 +120,11 @@ different model family. Record `review round: local CodeRabbit CLI (reason)` or 
 - Approved LOCAL delivery covers authorized setup/verification, safe in-scope corrections and exact restoration of
   tool-generated temporary changes. Save the pre-run bytes/hash; confirm no unrelated edits, restore only generated
   changes and verify the original hash. No arbitrary resource/config changes or test bypasses.
+- Never delete a token or credential file the human saved; remove only credentials your lane created.
 - Return one consolidated shared readiness report or ONE batched real blocker. The user can signal "W<n> ready"; the
   coordinator reads it directly. Manual sessions are not automatically monitored. Escalate new material choices,
   shared/destructive operations and actions outside authority, not routine authorized LOCAL steps.
+- A report has a **Security concerns** line (or `none`) for anything you noticed outside your scope.
 - So `lane status` shows the readiness checks, a task started by `lane` whose finished work has a PR also writes
   `reports/<number>-evidence.json` next to its report, with the file-write tool (`<number>` is its `lane` task number):
   `{"lane": "<lane name>", "prompt_sha256": "<prompt hash>", "evidence": {"pr": "<HTTPS link>", "head": "<full PR head commit>",
@@ -122,6 +147,15 @@ different model family. Record `review round: local CodeRabbit CLI (reason)` or 
   or **inferred**, so a guess cannot silently become an instruction. A uniqueness or identity assumption stays
   inferred until tested; re-observe an inferred claim before treating it as a blocker. Lanes add no prompts, confirmations, refusals or safety
   rules without the human's OK.
+- A prompt that says something is broken carries an `Observed:` line (command and output). Without one, reproduce it
+  first and record the command and output; if the cause differs from the prompt, stop and ask.
+- Progress over edge cases: deliver the outcome first, test the property the human cares about (not a proxy for it),
+  and offer extra gates you think of as proposals, not as work you add.
+- Obstacles inside the approved scope are yours to solve within your authority (missing setup, a stale path, your own
+  mistyped command) before you stop. Report before any slow cleanup.
+- A limit in your prompt protects something; it should say what. A size or time figure is an estimate unless the
+  prompt calls it a hard cap; stop only on the failures the prompt names (and the authority, publication, cost and
+  safety stops here), not on any surprise.
 - Put code in the repo that will own it in production. Proof harnesses for unbuilt features don't get a home in a
   product repo just because the test infrastructure is there; ask the coordinator.
 - Demos and proofs: build the smallest thing that shows the point. No general subsystems, setup layers or extra
@@ -132,7 +166,15 @@ different model family. Record `review round: local CodeRabbit CLI (reason)` or 
 - No secrets in files, logs or command-line arguments.
 - No lane numbers, local paths or customer names in anything public: branches, commits, PRs, comments, issues, labels,
   milestones, gists. Keep internal projects and private events out of public text. Follow any stronger project limits.
+- Text posted under the human's account says "I", never "we" or the human's name.
+- A document written for readers (a guide, design or README) gets `/cold-read` before it goes into a PR.
 - Short sentences, plain words.
+
+## Effort file (optional)
+
+<For a parallel effort, the coordinator writes a separate file from this section only (Ownership,
+Open PRs to stay off, Rules for every lane, Sequencing), sends it as another `--input`, and doesn't
+copy the workflow.>
 
 ## Ownership
 

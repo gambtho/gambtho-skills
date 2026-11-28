@@ -3,6 +3,9 @@
 Stable facts for the coordinator. Volatile state lives in `STATE.md` in the same folder.
 Lane prompts: `lanes/W<n>-<slug>.md`. People: `PEOPLE.md` (or an existing people section
 here). Project-wide lane rules live in `AGENTS.md`; refer to them rather than copying.
+Shared process: the skill's `references/base-rules.md` and `references/lane-rules.md` (pointers, not copies).
+Fleet file: <path to the fleet file; machines live there, not here>.
+Lane prefix: <W, F, …>. STATE budget: <words, if lower than 1,600>.
 Last reviewed: <date>.
 
 ## Repositories
@@ -16,7 +19,8 @@ not the stable repo table. Verify repository identity before assigning a profile
 
 ## Hosts
 
-To avoid local winning by omission, match each lane to `Use for`; local is the fallback
+After migration this table holds only project-specific host facts (a host this project may
+not use, a project path); machines and roles come from the fleet file. To avoid local winning by omission, match each lane to `Use for`; local is the fallback
 when no row matches. A `Worker` value of `lane` is an explicit per-project opt in to the
 developerlanes commands: record its saved enrollment instead of a binding. Blank or `herdr`
 keeps the frozen `herdr-lane` or manual path; to avoid incomplete remote setup, each such
@@ -52,8 +56,11 @@ An unfilled command uses the skill's manual fallback; entries do not expand auth
 
 | Routine | Command (including working directory) | Budget | Output |
 |---|---|---|---|
-| Drift check | <project drift-check command> | <time/query limit> | <local drift report path; observation time and unknowns> |
-| Morning sweep | <project sweep command> | <time/query limit> | <current PR/lane observations and unknowns> |
+| Morning | `python3 <skill>/scripts/coordinator.py morning --root <this folder> --project <lane project> --fleet <fleet file>` | <time/query limit> | <brief, sweep, disk, notes, asks; unknowns> |
+| End of day | `… coordinator.py eod --root <this folder> …` (writes STATE-DRIFT receipts) | <limit> | <drift receipt; unknowns> |
+| Weekly | `… coordinator.py weekly --root <this folder> … --json-out reports/AUDIT-<date>.json --previous <last week's JSON>` | <limit> | <audit table, friction, lane-review PR, archive candidates> |
+| Drift check | <project drift-check command, if other than the shared checker> | <time/query limit> | <local drift report path; observation time and unknowns> |
+| Morning sweep | <project sweep command, if other than the shared checker> | <time/query limit> | <current PR/lane observations and unknowns> |
 | Disk check (end of day + weekly) | <filesystem free-space command; five largest lane folders with sizes; explicit roots> | <time limit; minimum free GiB, e.g. 100> | <private report path; observation time; below minimum: Needs the human; failures: unknown> |
 
 For the shared checker command/config, see [morning.md](morning.md); adopting it is project-owned.

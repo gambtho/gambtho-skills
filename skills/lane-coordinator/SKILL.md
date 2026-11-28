@@ -14,6 +14,11 @@ permission to take over through your own edits or a shadow worker.
 
 ## Where things live
 
+- **Who owns what:** this skill = all shared process ([base-rules.md](references/base-rules.md),
+  [lane-rules.md](references/lane-rules.md) sent as-is, templates, `scripts/coordinator.py`). A
+  [fleet file](references/fleet-template.md) = machines, roles, harness setting, disk floor; its path
+  is a parameter (`Fleet file:` in COORDINATION.md, `--fleet`); read it, never copy it. The project
+  overlay = repos, people, grants, private material, project rules, decisions, lane prefix; it points here.
 - <a id="lane-mechanics-read-the-bundled-coordinator"></a>**Lane commands:** for a `Worker: lane` host, read the skill bundled with developerlanes
   (`resources/skills/lane-coordinator/SKILL.md` in the package the `lane` on PATH runs from;
   `lane init` prints it) once per session; record its path in COORDINATION.md. It wins on
@@ -84,10 +89,10 @@ then the new idea. Ask only the question that decides; follow-ups wait.
   worker and reason in the `Host:` line and STATE. Verify a lane worker's saved host/worker
   enrollment and project allowlist before first use. For a remote lane, deliver every named
   input to the target host, or use only host paths verified to exist.
-- Keep the project's `lanes/COMMON-RULES.md` from
-  [common-rules-template.md](references/common-rules-template.md); every prompt names it.
-  Its header covers amending running lanes, shared hot files and parallel efforts. Lanes
-  write [handoffs](references/handoff-template.md), keeping handoffs alongside reports.
+- Every prompt names [lane-rules.md](references/lane-rules.md) and the overlay (a project not yet
+  migrated keeps naming its `lanes/COMMON-RULES.md`). Its header covers amending running lanes,
+  shared hot files and parallel efforts. Lanes write [handoffs](references/handoff-template.md),
+  keeping handoffs alongside reports.
 - New product work: design first, stop for the human's OK, then one PR at a time, under
   the shared workflow's review sequence. Don't re-gate approved work. For state-transition
   risk, optionally recommend one [state-model check](references/state-model-check.md).
@@ -96,12 +101,11 @@ then the new idea. Ask only the question that decides; follow-ups wait.
 
 Preparing a prompt never launches it. On explicit "start W<n>", start it once by the
 row's approved path, record it in STATE and never retry. A lane worker starts as the
-bundled skill says, with `--label "W<n>" --by <project>-coord` (lanes appends the task
-ID) and only approved context as `--input` files: the project's authority brief, the
-host-resolved COMMON-RULES and any selected review profile. STATE, other lanes' context
-and credentials stay home; content goes only to hosts its Hosts table allows. A restart
-elsewhere reuses the same prompt file. A Herdr-only host starts by the
-[legacy reference](references/legacy-herdr.md#start-a-lane-on-a-herdr-host).
+bundled skill says, in [base-rules' one form](references/base-rules.md#writing-prompts-and-starting-lanes)
+(`--label "<prefix><n>"`, `--by <project>-coord`; lanes appends the task ID), with only approved
+context as `--input`: the overlay, `lane-rules.md`, any effort file and selected review profile. STATE, other
+lanes' context and credentials stay home; content goes only to hosts the fleet file allows. A
+restart elsewhere reuses the same prompt file. A Herdr-only host starts by the [legacy reference](references/legacy-herdr.md#start-a-lane-on-a-herdr-host).
 
 ## Handling a report
 
@@ -140,7 +144,7 @@ try, or its last try is older than 7 days.
 Decisions in force carry IDs (`D1`…) and point to their full record; keep about 10.
 **Replace, don't add**: one home per fact. Closing a lane (merged and tried, retired,
 cleaned up; not `awaiting try`) moves its row to `CLOSED-<month>.md` in the same update as
-one dated outcome line; STATE stays at most 200 lines and keeps every decision in force. Bulky-output deletion waits for
+one dated outcome line; STATE stays within its word budget and keeps every decision in force. Bulky-output deletion waits for
 the human's OK on an exact list. Pick-up test: a fresh session can state the goal, each
 outcome's status and the human's next decision. Durable facts go to
 [COORDINATION.md](references/coordination-template.md) and [PEOPLE.md](references/people-template.md).
@@ -149,7 +153,7 @@ outcome's status and the human's next decision. Durable facts go to
 
 `coordinate <project>`, `end of day <project>`, `weekly <project>`; with only one project
 folder (`~/<project>-local/`) the name is optional, and with several, ask. Commands and
-budgets come from COORDINATION.md's `Routines` ([shared checker](references/morning.md)),
+budgets come from COORDINATION.md's `Routines` (`scripts/coordinator.py`; [shared checker](references/morning.md)),
 grant no authority, and a failed check is **unknown**, never clean.
 
 **Coordinate:** read STATE, AGENTS.md, COORDINATION.md and each repo's AGENTS/CONTRIBUTING;
@@ -160,36 +164,36 @@ run it unasked); mark stale outcome rows by hand; then give the status reply.
 
 **End of day:** drift check and fix STATE; disk check per [morning.md](references/morning.md);
 the step-back paragraph; stop/resume lines for overnight lanes; tomorrow's first actions on
-top; then bring STATE within budget (drift check `STATE-lines`), moving closed lanes to the
+top; then bring STATE within its word budget (drift check `Budgets`), moving closed lanes to the
 archive and detail to lane reports; stamp `Last end of day: <date time>`.
 
-**Weekly:** re-try each outcome row or leave it stale with a reason; disk check; check
-STATE trimming, rule-file budgets and parked lanes without stop/resume lines; list
-duplicate, contradictory or superseded rules and new rules since the last intent check for
-the human; propose at most 3 notes from `reports/BACKLOG-NOTES.md` for the human to pick;
-retire each `reports/SKILL-FRICTION.md` line (below); stamp `Last weekly pass: <date>`.
+**Weekly:** re-try each outcome row or leave it stale with a reason; disk check; check STATE
+trimming, rule-file budgets and parked lanes without stop/resume lines; run `coordinator.py weekly`
+(audit rows, friction ages, lane-review PR, archive candidates; edits nothing), fix your rows (two
+failing weeks go to the human), tidy cards, archive eligible rows (never `awaiting try`) and merge
+or close the read lane-review PR; list duplicate, contradictory or superseded rules and new rules
+since the last intent check; propose at most 3 notes from `reports/BACKLOG-NOTES.md`; retire each
+`reports/SKILL-FRICTION.md` line (below); stamp `Last weekly pass: <date>`.
 
 **Human away more than two days:** re-plan the critical path so stalls show.
 
 ## Notes for later
 
-Lanes end with **Notes for later**. File one as a card or issue only when it moves an
-outcome that isn't `works` or a critical-path step (a dogfood gap that blocks the current
-try counts), or when the human asks. Everything else is one dated line in
-`reports/BACKLOG-NOTES.md`. Don't design card sets for something whose base outcome is
-`untried`; the design waits for the try.
+Lanes end with **Notes for later**. File one as a card or issue only when it moves an outcome
+that isn't `works` or a critical-path step (a dogfood gap that blocks the current try counts),
+or when the human asks. Everything else is one dated line in `reports/BACKLOG-NOTES.md`. Don't
+design card sets for something whose base outcome is `untried`; the design waits for the try.
 
 ## Outward text, authority and hard rules
 
 - Public text: [pr-text](../pr-text/SKILL.md) and [writing-rules.md](references/writing-rules.md).
   Text addressed to people is an exact draft, posted only after approval. No customer,
   event, internal project or lane number in public repos. No secrets anywhere.
-- Live cloud changes: [live-changes.md](references/live-changes.md); demos:
-  [demo-lanes.md](references/demo-lanes.md).
+- Live cloud changes: [live-changes.md](references/live-changes.md); demos: [demo-lanes.md](references/demo-lanes.md).
 - Resolve Git policy from project AGENTS.md, the COORDINATION.md repo row and repo rules;
   ask on conflict. A method grants no push authority. Check the author before you push.
-- Say plainly when you got something wrong. When the human corrects you on process, add
-  one dated line to `reports/SKILL-FRICTION.md`. Weekly, each line retires one way:
-  **covered** (cite the partner check or bundled rule), **mechanics** (send to its owner: a
-  lanes card, pr-closeout or a template), **recurring (2+) and uncovered** (edit an existing slot
-  here, deleting as many lines as you add; this file stays near 180 lines) or **one-off**.
+- Say plainly when you got something wrong. When the human corrects you on process, add one
+  [friction line](references/base-rules.md#friction-loop) to `reports/SKILL-FRICTION.md`. Weekly, each
+  retires: **covered** (cite the partner check or bundled rule), **mechanics** (to its owner: a lanes
+  card, pr-closeout or a template), **generic and uncovered** (the week's one skill PR; here, edit a
+  slot, deleting as many lines as you add; this file stays near 180 lines) or **one-off**.

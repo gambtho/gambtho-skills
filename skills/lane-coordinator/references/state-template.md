@@ -8,15 +8,17 @@ Last weekly pass: <date>.
 Single writer: <coordinator session; other sessions leave notes at the project report path>.
 
 <!-- Writing it: re-read before replacing and refuse to overwrite a file changed since you
-read it; write a same-directory temp file, check it is nonempty with unique lane rows,
+read it; take every time from `coordinator.py now` in the same step; write a same-directory temp file, check it is nonempty with unique lane rows,
 recheck the original, then rename. Re-read after a `lane` command updates a row. One
-commit per coherent update where the project versions STATE. After a rule or ownership
+commit per coherent update where the project versions STATE, staging named files only
+(never `git add -A` or `commit -a`). After a rule or ownership
 change, reconcile affected prompts and STATE in the same update and mark old instructions
 superseded. Replace, don't add: one home per fact. Closing a lane (merged and tried, retired
 or cleaned up; checked at each cleanup and at end of day; never while `awaiting try`) moves its row or paragraph to the
-archive (`CLOSED-<month>.md`, same folder) in the same update, as one line:
+archive (`CLOSED-<month>.md`, same folder; shape in `closed-template.md`) in the same update, as one line:
 `- W<n> (<date>, merged #42): <one-line outcome>; report reports/W<n>-REPORT.md`.
-Keep STATE at most 200 lines: open lanes, outcomes, decisions in force, needs and next steps.
+Keep STATE within its word budget (1,600 words unless the overlay sets less; the drift check
+counts it): open lanes, outcomes, decisions in force, needs and next steps.
 A decision still in force never moves to the archive. Propose an exact deletion list with sizes for bulky outputs from the lane
 report/handoff; it stays under **Needs the human** until decided, and deletion happens
 only after the human approves that exact list. Unknown safety or size is not

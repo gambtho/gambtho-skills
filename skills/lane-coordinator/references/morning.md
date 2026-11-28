@@ -1,5 +1,48 @@
 # Shared morning sweep and STATE drift
 
+## Routines through `coordinator.py`
+
+Coordinators run the routines through one wrapper, which adds `lane brief`, the fleet
+file's disk floor, unread notes and a live re-check of STATE's asks around this checker:
+
+```sh
+python3 /path/to/lane-coordinator/scripts/coordinator.py morning --root ~/example-local --project example --fleet /path/to/FLEET.md
+python3 /path/to/lane-coordinator/scripts/coordinator.py eod --root ~/example-local --project example --fleet /path/to/FLEET.md
+python3 /path/to/lane-coordinator/scripts/coordinator.py weekly --root ~/example-local --project example --fleet /path/to/FLEET.md \
+  --json-out ~/example-local/reports/AUDIT-<date>.json --previous ~/example-local/reports/AUDIT-<last week>.json
+python3 /path/to/lane-coordinator/scripts/coordinator.py audit --root ~/a-local --root ~/b-local --fleet /path/to/FLEET.md
+python3 /path/to/lane-coordinator/scripts/coordinator.py now
+python3 /path/to/lane-coordinator/scripts/asks.py example/project#12
+```
+
+What each writes: the wrapper writes nothing but an explicit `--json-out`. `morning` runs
+this checker's sweep, which advances `.morning-last-run`; `eod` and `weekly` run
+`--check --no-save`, which writes the STATE-DRIFT receipts and never the sweep stamp. A
+folder without `coordination.json` shows the checker as not checked. A failed `lane brief`
+or checker run is unknown and makes the exit code 1.
+
+`audit` is the weekly drift check. Each row names `file:line`, the check and the owning
+coordinator (folder name with `-local` → `-coord`): `pointer` and `copy` (the overlay points
+at `base-rules.md` and `lane-rules.md` and holds no copied base sentence), `stale-fact`
+(a name from the fleet file's `## Retired` list, `--stale` or `herdr-lane`, on a line that
+doesn't say it is retired or history), `state-shape` and `state-budget` (template sections;
+words against 1,600 or the overlay's lower `STATE budget:`), `prompt-shape` (lane prompts
+changed in the last 7 days have `# Goal`, `# Scope`, `# Done when`, `# Report location` in
+order), `launch-line` (`--creation-id`, `--label <prefix><n>`, `--by <project>-coord`),
+`friction-age` (open line older than 14 days), `friction-format`, `temp-rule` (an `until
+<date>` that has passed, also in the fleet file) and `lane-review` (with
+`--lane-review-repo`: a "lane review" PR open more than 7 days). Exit 1 means rows were
+found. `--previous` marks rows that were also in last week's JSON; those go to the human.
+
+`asks.py` prints, for each PR, its state, `mergeable`, merge state, merge queue, head and the
+full body of every review on the head commit or submitted since the last push (the later of
+the head commit's date and its last force-push). Only an open, `MERGEABLE`, unqueued,
+non-draft PR with no change request since that push says `ASK`. A bare `#N` resolves only
+with `--repo` (or, from `coordinator.py`, a `coordination.json` with exactly one repo);
+otherwise it is unknown. Exit 0 means every PR is `ASK`.
+
+## The checker (`morning.py`)
+
 Run the bundled checker from a configured project, or select its root explicitly:
 
 ```sh
@@ -143,8 +186,8 @@ Check mode retains the existing bounded project-root old-folder advisory and
 local document/closed-owner checks. Archive discovery uses `CLOSED-*.md`, with
 shared-root fallback. Candidate/archive reads are capped at 100 and old-folder
 walks at 10,000 entries; skipped coverage is unknown. This is not a disk scan.
-Budgets show word counts and `STATE-lines` against a 200-line target (`!` above 200);
-archive closed lanes to `CLOSED-<month>.md`.
+Budgets are word counts, the one unit (STATE 1,600, COORDINATION 1,500, AGENTS 900,
+PEOPLE 700, lane prompts 800; `!` above); archive closed lanes to `CLOSED-<month>.md`.
 PR check summaries are tied to the queried head commit; absent/truncated/mismatched
 metadata is unknown. `checks=none` means no reported checks, not passing CI.
 
