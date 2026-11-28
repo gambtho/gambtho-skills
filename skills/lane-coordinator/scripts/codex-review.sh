@@ -5,6 +5,7 @@
 # Finds codex on PATH, else through mise. The prompt goes in on stdin (`-`) from the file,
 # so codex reads to EOF and never waits on a terminal, and no argument-size limit applies.
 # Optional: CODEX_REVIEW_MODEL selects the model; unset uses codex's default.
+# Exits 69 when Codex's sandbox could not run any command (bwrap failed).
 set -euo pipefail
 
 if [[ $# -ne 2 ]]; then
@@ -42,6 +43,20 @@ fi
 
 "${codex_cmd[@]}" exec --skip-git-repo-check --sandbox read-only ${model_args[@]+"${model_args[@]}"} \
   -- - <"$prompt" >"$out.md" 2>"$out.stderr" || status=$?
+# When bwrap cannot set up the sandbox's namespaces, every command Codex runs
+# fails, yet codex exits 0 with a review that read nothing. Treat that as a
+# failure. Only bwrap's namespace setup errors count, not any bwrap line.
+sandbox_failed='^bwrap: (loopback: Failed RTM_NEWADDR|setting up uid map|No permissions to create|Creating new namespace failed)'
+if ((status == 0)) && grep -Eq "$sandbox_failed" <"$out.stderr"; then
+  status=69
+  guidance="codex-review.sh: Codex's sandbox could not run commands (see the bwrap lines in $out.stderr),
+  so the review read no files. On Ubuntu 24.04 or later, AppArmor blocks bwrap's user
+  namespaces: install bubblewrap and its AppArmor profile, as Codex's sandboxing
+  prerequisites describe (gambtho/dotfiles: make codex-sandbox). Then check that
+  'codex sandbox -- true' works and rerun."
+  printf '%s\n' "$guidance" >&2
+  printf '%s\n' "$guidance" >>"$out.stderr" || true
+fi
 echo "$status" >"$out.exit"
 echo "$status"
 exit "$status"
