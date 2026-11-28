@@ -11,7 +11,8 @@ Writer: <coordinator>. Last reviewed: <YYYY-MM-DD>.
 |---|---|---|---|---|---|
 | <name> | <coordinator only / default worker / containers and VMs / Windows / macOS> | <`lane`, or blank for none> | <`lane --host <name>`, SSH alias> | <always / hh–hh zone> | <limits, disposable or not> |
 
-A lane goes where its resources are; with no match, the default worker.
+A lane goes where its resources are. A `default worker` row matches any lane no other row
+matches; with no such row, the lane runs locally, as the skill says.
 
 ## Harness
 

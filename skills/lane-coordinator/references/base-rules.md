@@ -55,8 +55,9 @@ in [lane-rules.md](lane-rules.md).
 - Launch with the bundled skill's start command in one form: a fresh creation ID saved in
   STATE before the first attempt, `--label <prefix><n>` (the project's lane number with its
   prefix, so the sidebar shows it), `--by <project>-coord`, and as `--input` only the
-  project overlay (`AGENTS.md`, plus any overlay file the prompt names) and
-  [lane-rules.md](lane-rules.md) resolved on the worker's host. Save the full start output;
+  project overlay (`AGENTS.md`, plus any overlay file the prompt names),
+  [lane-rules.md](lane-rules.md) resolved on the worker's host, any effort file and any
+  selected review profile. Save the full start output;
   its request ID is what the bundled lookup needs. The bundled skill owns the flags' meaning.
 - After you steer a running lane, check that the instruction was delivered, as the bundled
   skill describes; withdraw an undelivered one before cleanup. A lane that works straight

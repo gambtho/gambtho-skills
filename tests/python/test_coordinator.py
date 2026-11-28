@@ -31,6 +31,14 @@ sys.exit(row.get('exit', 0))
 '''
 
 
+def load_real_asks():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('asks_for_tests', SCRIPT.parent / 'asks.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         self.tmp = pathlib.Path(tempfile.mkdtemp())
@@ -201,7 +209,42 @@ class RoutineTests(Base):
         self.assertIn('not checked: no coordination.json', out)
         self.assertRegex(out, r'GiB free on .*; floor 1 GiB \(fleet file\)')
         self.assertIn('- reports/inbox/note-1.md', out)
-        self.assertIn("- DON'T ASK example/project#7: merged 2026-11-28T09:00:00Z", out)
+        self.assertIn("DON'T ASK example/project#7: merged 2026-11-28T09:00:00Z\n  https://", out)
+
+    def test_asks_follow_lane_rows_and_keep_other_repos(self):
+        root = self.dir / 'clean-local'
+        (root / 'coordination.json').write_text('{"repos": ["example/project"]}')
+        state = root / 'STATE.md'
+        state.write_text(state.read_text()
+                         .replace('1. none', '1. Merge W12 (row below), then other/project#12 and #12.')
+                         .replace('reports/W12-REPORT.md | Active', 'reports/W12-REPORT.md; #9 | Active'))
+        sys.path.insert(0, str(SCRIPT.parent))
+        self.addCleanup(sys.path.remove, str(SCRIPT.parent))
+        spec = __import__('importlib.util').util.spec_from_file_location('coord_under_test', SCRIPT)
+        module = __import__('importlib.util').util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        seen = []
+
+        class FakeAsks:
+            REF = load_real_asks().REF
+            parse_ref = staticmethod(load_real_asks().parse_ref)
+
+            @staticmethod
+            def run(refs, default):
+                seen.append((refs, default))
+                return []
+        module.load_asks = lambda: FakeAsks
+        module.open_asks(root)
+        self.assertEqual(seen, [(['other/project#12', '#12', '#9'], 'example/project')])
+
+    def test_unknown_ask_and_incomplete_checker_are_not_clean(self):
+        root = self.dir / 'clean-local'
+        state = root / 'STATE.md'
+        state.write_text(state.read_text().replace('1. none', '1. Merge example/project#7.'))
+        self.respond({'gh api graphql': {'out': '', 'exit': 1}})
+        result = self.run_script('morning', '--root', 'clean-local')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("DON'T ASK example/project#7: unknown: gh exited 1", result.stdout)
 
     def test_brief_failure_is_unknown_not_clean(self):
         self.respond({'lane brief example': {'out': 'not json', 'exit': 2}})
@@ -237,6 +280,13 @@ class RoutineTests(Base):
         modes = [call[3:] for call in self.calls() if call[0] == 'morning.py']
         self.assertEqual(modes, [[], ['--check', '--no-save'], ['--check', '--no-save']])
         self.assertEqual(sorted(p.relative_to(root) for p in root.rglob('*')), before)
+        # Exit 0 with failed queries is still unknown, not a clean read.
+        (fake / 'morning.py').write_text('WORD_BUDGETS = {"STATE": 1600}\nprint("## Failed queries\\n- `x`: timeout")\n')
+        result = subprocess.run([sys.executable, str(fake / 'coordinator.py'), 'eod', '--root', str(root)],
+                                capture_output=True, text=True, timeout=60, check=False,
+                                env={**os.environ, 'FAKE_LOG': str(self.log)})
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('unknown: some reads failed', result.stdout)
 
     def test_weekly_digest_and_json_out(self):
         out = self.tmp / 'AUDIT.json'

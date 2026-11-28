@@ -103,7 +103,7 @@ Preparing a prompt never launches it. On explicit "start W<n>", start it once by
 row's approved path, record it in STATE and never retry. A lane worker starts as the
 bundled skill says, in [base-rules' one form](references/base-rules.md#writing-prompts-and-starting-lanes)
 (`--label "<prefix><n>"`, `--by <project>-coord`; lanes appends the task ID), with only approved
-context as `--input`: the overlay, `lane-rules.md` and any selected review profile. STATE, other
+context as `--input`: the overlay, `lane-rules.md`, any effort file and selected review profile. STATE, other
 lanes' context and credentials stay home; content goes only to hosts the fleet file allows. A
 restart elsewhere reuses the same prompt file. A Herdr-only host starts by the [legacy reference](references/legacy-herdr.md#start-a-lane-on-a-herdr-host).
 

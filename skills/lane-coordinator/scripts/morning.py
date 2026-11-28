@@ -470,7 +470,11 @@ PROMPT_WORD_BUDGET = 800
 
 
 def budget_counts(documents, prompts):
-    limits = WORD_BUDGETS
+    # A project overlay may set a lower STATE budget in COORDINATION.md ("STATE budget: N words").
+    lower = re.search(r"STATE budget:\s*([\d,]+)\s*words", documents.get("COORDINATION", ""))
+    limits = dict(WORD_BUDGETS)
+    if lower:
+        limits["STATE"] = min(limits["STATE"], int(lower[1].replace(",", "")))
     return [(name, len(text.split()), limits.get(name, PROMPT_WORD_BUDGET),
              len(text.split()) > limits.get(name, PROMPT_WORD_BUDGET))
             for name, text in {**documents, **prompts}.items()]

@@ -93,8 +93,8 @@ different model family. Record `review round: local CodeRabbit CLI (reason)` or 
   and passes CI on the combined head before merge.
 - Small PRs, one theme each. Follow `pr-closeout` for scoped review/finalization, preserving publication approval
   and reusing valid review evidence.
-- On an open PR, fix only findings that show the change going the wrong way on something it claims; put the rest in a
-  follow-up issue or your Notes for later. Report each push as a size change (files, lines added and removed).
+- On an open PR, fix only findings that show the change going the wrong way on something it claims, or a regression it
+  causes anywhere; put the rest in a follow-up issue or your Notes for later. Report each push as a size change (files, lines added and removed).
 - Load the `pr-text` skill when writing PR bodies, review comments/replies and issues.
 - PR publication, replies and other public text follow the authority table in COORDINATION.md. Without permission
   there, draft exact text for the human. Production/provider approvals are unchanged.

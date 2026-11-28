@@ -114,6 +114,14 @@ class StateParsingTests(unittest.TestCase):
                                 ("PEOPLE", 701, 700, True), ("STATE", 1601, 1600, True),
                                 ("W20", 801, 800, True), ("W21", 800, 800, False)])
 
+    def test_overlay_sets_a_lower_state_budget(self):
+        docs = {"COORDINATION": "STATE budget: 1,200 words.", "STATE": "word " * 1300}
+        rows = dict((name, (limit, over)) for name, _, limit, over in morning.budget_counts(docs, {}))
+        self.assertEqual(rows["STATE"], (1200, True))
+        docs["COORDINATION"] = "STATE budget: 5000 words."
+        rows = dict((name, (limit, over)) for name, _, limit, over in morning.budget_counts(docs, {}))
+        self.assertEqual(rows["STATE"], (1600, False))
+
     def test_budgets_are_words_only(self):
         self.assertFalse(hasattr(morning, "state_lines"))
         self.assertEqual(morning.WORD_BUDGETS["STATE"], 1600)

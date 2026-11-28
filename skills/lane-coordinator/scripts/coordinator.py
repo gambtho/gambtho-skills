@@ -43,6 +43,8 @@ FRICTION_DAYS = 14
 LANE_REVIEW_DAYS = 7
 PROMPT_DAYS = 7
 TIMEOUT = 60
+REVIEW_PR_LIMIT = 200
+INCOMPLETE = re.compile(r'^#+ Failed queries|Activity unknown|- Failed queries: [1-9]', re.M)
 
 
 def load_morning():
@@ -361,8 +363,8 @@ class Audit:
 
     def lane_review(self, repo: str, owner: str):
         try:
-            result = subprocess.run(['gh', 'pr', 'list', '-R', repo, '--state', 'open', '--limit', '100',
-                                     '--json', 'number,title,createdAt,url'], capture_output=True, text=True,
+            result = subprocess.run(['gh', 'pr', 'list', '-R', repo, '--state', 'open', '--search', 'lane review in:title',
+                                     '--limit', str(REVIEW_PR_LIMIT), '--json', 'number,title,createdAt,url'], capture_output=True, text=True,
                                     timeout=TIMEOUT, stdin=subprocess.DEVNULL, check=False)
             prs = json.loads(result.stdout) if result.returncode == 0 else None
         except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
@@ -370,6 +372,8 @@ class Audit:
         if prs is None:
             self.add(repo, '-', 'lane-review', owner, 'unknown: could not list open PRs')
             return []
+        if len(prs) >= REVIEW_PR_LIMIT:
+            self.add(repo, '-', 'lane-review', owner, f'unknown: {REVIEW_PR_LIMIT}+ matching open PRs; coverage incomplete')
         found = [pr for pr in prs if re.search(r'lane review', pr.get('title', ''), re.I)]
         for pr in found:
             opened = dt.datetime.fromisoformat(pr['createdAt'].replace('Z', '+00:00')).date()
@@ -472,6 +476,8 @@ def run_checker(root: pathlib.Path, mode: str) -> tuple[str, bool]:
     if result.returncode != 0:
         first = (result.stderr.strip().splitlines() or [''])[0][:200]
         return f'unknown: morning.py exited {result.returncode} {first}\n{output}', False
+    if INCOMPLETE.search(output):
+        return f'unknown: some reads failed (see Failed queries)\n{output}', False
     return output, True
 
 
@@ -502,6 +508,11 @@ def open_asks(root: pathlib.Path) -> tuple[list[dict], str | None]:
         return [], 'unknown: no STATE.md'
     asks = load_asks()
     text = '\n'.join(line for _, line in section(state, 'Needs the human'))
+    # An item that links to a lane row ("see W12") asks about that row's PRs.
+    rows = {re.sub(r'[`*\[\]]', '', line.split('|')[1]).strip(): line
+            for _, line in section(state, 'Open lanes') if line.startswith('|') and line.count('|') > 2}
+    text += ''.join('\n' + rows[lane] for lane in dict.fromkeys(re.findall(r'\b([A-Za-z][A-Za-z-]*\d+)\b', text))
+                    if lane in rows)
     refs = list(dict.fromkeys(match[0] for match in asks.REF.finditer(text)))
     bare = [f'#{n}' for n in dict.fromkeys(re.findall(r'(?<![\w/#])#(\d+)\b', text))]
     try:
@@ -509,7 +520,7 @@ def open_asks(root: pathlib.Path) -> tuple[list[dict], str | None]:
     except (json.JSONDecodeError, AttributeError):
         repos = []
     default = repos[0] if len(repos) == 1 else None
-    covered = {f'#{asks.parse_ref(ref, None)[1]}' for ref in refs} if default else set()
+    covered = {f'#{number}' for repo, number in (asks.parse_ref(ref, None) for ref in refs) if repo == default}
     return asks.run(refs + [ref for ref in bare if ref not in covered], default), None
 
 
@@ -572,7 +583,8 @@ def routine(args, mode: str) -> int:
     elif not rows:
         out.append('none found in "Needs the human"')
     else:
-        out.extend(f"- {row['verdict']} {row['ref']}: {row['reason']}" for row in rows)
+        out.extend(load_asks().render(row) for row in rows)
+        ok = ok and not any(row['reason'].startswith('unknown') for row in rows)
     if mode == 'weekly':
         audit, notes = run_audit([root], args, today)
         out.append('\n## Audit')
