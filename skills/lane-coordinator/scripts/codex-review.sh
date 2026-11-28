@@ -43,17 +43,19 @@ fi
 
 "${codex_cmd[@]}" exec --skip-git-repo-check --sandbox read-only ${model_args[@]+"${model_args[@]}"} \
   -- - <"$prompt" >"$out.md" 2>"$out.stderr" || status=$?
-# When bwrap cannot set up the sandbox, every command Codex runs fails, yet
-# codex exits 0 with a review that read nothing. Treat that as a failure.
-if ((status == 0)) && grep -q '^bwrap: ' "$out.stderr"; then
+# When bwrap cannot set up the sandbox's namespaces, every command Codex runs
+# fails, yet codex exits 0 with a review that read nothing. Treat that as a
+# failure. Only bwrap's namespace setup errors count, not any bwrap line.
+sandbox_failed='^bwrap: (loopback: Failed RTM_NEWADDR|setting up uid map|No permissions to create|Creating new namespace failed)'
+if ((status == 0)) && grep -Eq "$sandbox_failed" <"$out.stderr"; then
   status=69
-  {
-    echo "codex-review.sh: Codex's sandbox could not run commands (see the bwrap lines above),"
-    echo "  so the review read no files. On Ubuntu 24.04 or later, AppArmor blocks bwrap's user"
-    echo "  namespaces: install bubblewrap and its AppArmor profile, as Codex's sandboxing"
-    echo "  prerequisites describe (gambtho/dotfiles: make codex-sandbox). Then check that"
-    echo "  'codex sandbox -- true' works and rerun."
-  } | tee -a "$out.stderr" >&2
+  guidance="codex-review.sh: Codex's sandbox could not run commands (see the bwrap lines in $out.stderr),
+  so the review read no files. On Ubuntu 24.04 or later, AppArmor blocks bwrap's user
+  namespaces: install bubblewrap and its AppArmor profile, as Codex's sandboxing
+  prerequisites describe (gambtho/dotfiles: make codex-sandbox). Then check that
+  'codex sandbox -- true' works and rerun."
+  printf '%s\n' "$guidance" >&2
+  printf '%s\n' "$guidance" >>"$out.stderr" || true
 fi
 echo "$status" >"$out.exit"
 echo "$status"
