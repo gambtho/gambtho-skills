@@ -50,6 +50,9 @@ Codex lanes from `scripts/claude-review.sh`; on failure, stop and report.
 - Only your prompt and its `--input` files arrive; the coordinator's other files are not on your host. If the prompt
   names a file you can't read, ask for it in your report or a question card; don't guess its content.
 - Write your report to the numbered report path your prompt gives, with the file-write tool.
+- Claude Code lanes: never end your turn while background work (builds, test runs, CI waits, reviews) is still
+  running; wait in the foreground with a bounded poll (at most about 9 minutes per call) and repeat until it finishes,
+  so the terminal host shows the lane working.
 
 ### Standing review fallback
 

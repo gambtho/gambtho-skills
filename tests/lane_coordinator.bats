@@ -1207,7 +1207,9 @@ for phrase in ("Stop for the human", "Only the coordinator writes STATE", "pre-a
                "restriction ships with a check", "Learnings live with their subject", "`/cold-read`",
                "append-only", "pre-push hook", "security-concerns register", "one at a time",
                "- YYYY-MM-DD: what happened · what the human wanted · generic? (y/n)", "one skill PR a week",
-               "citing the merged commit", "Fleet file: <path>"):
+               "citing the merged commit", "Fleet file: <path>", "Reading a lane you can't see",
+               "status and question cards first", "usually means busy", "`instruction-status`",
+               "withdraw and resend one still held after idle", "never to paste, unless delivery failed at idle"):
     assert phrase in base, phrase
 rules = flat(refs / "lane-rules.md")
 for phrase in ("sends this file **as it is**", "never copies or rewrites it", "### On a lane worker",
@@ -1216,7 +1218,8 @@ for phrase in ("sends this file **as it is**", "never copies or rewrites it", "#
                "Obstacles inside the approved scope", "On an open PR, fix only findings",
                "another OS, running as root, symlinks, concurrency", 'says "I"',
                "Never delete a token or credential file the human saved", "A limit in your prompt protects something",
-               "until a project migrates"):
+               "until a project migrates", "never end your turn while background work",
+               "bounded poll (at most about 9 minutes per call)", "shows the lane working"):
     assert phrase in rules, phrase
 assert not (refs / "common-rules-template.md").exists(), "one source for lane rules"
 # Templates: the lanes prompt headings, a word budget and the CLOSED-<month>.md archive.

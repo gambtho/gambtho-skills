@@ -62,6 +62,10 @@ in [lane-rules.md](lane-rules.md).
 - After you steer a running lane, check that the instruction was delivered, as the bundled
   skill describes; withdraw an undelivered one before cleanup. A lane that works straight
   through gets it only at its report, so put facts it needs in the prompt before start.
+- Reading a lane you can't see: check its status and question cards first. "Not at an idle
+  editor" usually means busy (often a background shell). An instruction is held and delivered
+  at idle: check `instruction-status`, and withdraw and resend one still held after idle. Ask
+  the human only to look at a pane, never to paste, unless delivery failed at idle.
 - An issue-based lane: before writing its prompt, check merged PRs for `#<n>` and read the
   default branch; its PR says `Closes #<n>` or `Part of #<n>`.
 - Read each repository's instruction files one at a time, after listing them.
