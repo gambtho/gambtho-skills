@@ -91,7 +91,8 @@ Each script writes `<out-prefix>.md`, `.stderr` and `.exit`, and exits with the 
 
 - Claude Code lanes: `bash <skill>/scripts/codex-review.sh <prompt-file> <out-prefix>`
   (read-only sandbox, prompt on stdin from the file so it never waits; `codex` from PATH or mise;
-  optional `CODEX_REVIEW_MODEL`).
+  optional `CODEX_REVIEW_MODEL`). It exits 69 when bwrap could not start Codex's sandbox, so the
+  review read nothing; its stderr says what to install.
 - Codex lanes: `bash <skill>/scripts/claude-review.sh <prompt-file> <out-prefix>`
   (no edit or shell tools; prompt on stdin; optional `CLAUDE_REVIEW_MODEL`).
 

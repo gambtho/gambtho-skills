@@ -5,6 +5,7 @@
 # Finds codex on PATH, else through mise. The prompt goes in on stdin (`-`) from the file,
 # so codex reads to EOF and never waits on a terminal, and no argument-size limit applies.
 # Optional: CODEX_REVIEW_MODEL selects the model; unset uses codex's default.
+# Exits 69 when Codex's sandbox could not run any command (bwrap failed).
 set -euo pipefail
 
 if [[ $# -ne 2 ]]; then
@@ -42,6 +43,18 @@ fi
 
 "${codex_cmd[@]}" exec --skip-git-repo-check --sandbox read-only ${model_args[@]+"${model_args[@]}"} \
   -- - <"$prompt" >"$out.md" 2>"$out.stderr" || status=$?
+# When bwrap cannot set up the sandbox, every command Codex runs fails, yet
+# codex exits 0 with a review that read nothing. Treat that as a failure.
+if ((status == 0)) && grep -q '^bwrap: ' "$out.stderr"; then
+  status=69
+  {
+    echo "codex-review.sh: Codex's sandbox could not run commands (see the bwrap lines above),"
+    echo "  so the review read no files. On Ubuntu 24.04 or later, AppArmor blocks bwrap's user"
+    echo "  namespaces: install bubblewrap and its AppArmor profile, as Codex's sandboxing"
+    echo "  prerequisites describe (gambtho/dotfiles: make codex-sandbox). Then check that"
+    echo "  'codex sandbox -- true' works and rerun."
+  } | tee -a "$out.stderr" >&2
+fi
 echo "$status" >"$out.exit"
 echo "$status"
 exit "$status"

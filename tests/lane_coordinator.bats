@@ -1079,7 +1079,7 @@ PY
 review_path() {
   local tool
   mkdir -p "$TEST_ROOT/review-bin"
-  for tool in bash cat dirname; do
+  for tool in bash cat dirname grep tee; do
     ln -sf "$(command -v "$tool")" "$TEST_ROOT/review-bin/$tool"
   done
   printf '%s' "$STUB_BIN:$TEST_ROOT/review-bin"
@@ -1133,6 +1133,24 @@ review_path() {
   [ "$(cat "$TEST_ROOT/out.exit")" = 0 ]
   [ "$(head -5 "$TEST_ROOT/args" | tr '\n' ' ')" = "exec -- codex exec --skip-git-repo-check " ]
   grep -Fxq m1 "$TEST_ROOT/args"
+}
+
+@test "codex review fails when bwrap could not start the sandbox, though codex exited 0" {
+  printf 'find bugs\n' >"$TEST_ROOT/prompt.md"
+  local reviewer_path
+  reviewer_path=$(review_path)
+  stub_command codex 'cat >/dev/null; echo "I could not read the files."; echo "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted" >&2'
+  PATH="$reviewer_path" run bash "$SKILL_DIR/scripts/codex-review.sh" "$TEST_ROOT/prompt.md" "$TEST_ROOT/out"
+  [ "$status" -eq 69 ]
+  [ "$(cat "$TEST_ROOT/out.exit")" = 69 ]
+  [[ "$output" == *"Codex's sandbox could not run commands"* ]]
+  grep -q "codex sandbox -- true" "$TEST_ROOT/out.stderr"
+
+  # Without bwrap lines, a 0 stays 0.
+  stub_command codex 'cat >/dev/null; echo findings; echo "warning: bubblewrap not on PATH" >&2'
+  PATH="$reviewer_path" run bash "$SKILL_DIR/scripts/codex-review.sh" "$TEST_ROOT/prompt.md" "$TEST_ROOT/out"
+  [ "$status" -eq 0 ]
+  [ "$output" = 0 ]
 }
 
 @test "claude review sends the prompt on stdin with edit and shell tools disallowed" {
