@@ -203,7 +203,7 @@ def prompt_date(root: pathlib.Path, path: pathlib.Path) -> dt.date:
     relative = path.relative_to(root)
     try:
         status = subprocess.run(['git', '-C', str(root), 'status', '--porcelain', '--untracked-files=all',
-                                 '--', str(relative)], capture_output=True, text=True, timeout=TIMEOUT,
+                                 '--ignored', '--', str(relative)], capture_output=True, text=True, timeout=TIMEOUT,
                                 stdin=subprocess.DEVNULL, check=False)
         if status.returncode == 0 and not status.stdout.strip():
             commit = subprocess.run(['git', '-C', str(root), 'log', '-1', '--format=%ct', '--', str(relative)],

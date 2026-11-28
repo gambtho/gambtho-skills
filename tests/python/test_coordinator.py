@@ -188,6 +188,29 @@ class AuditTests(Base):
         self.assertEqual([(row['file'], row['check']) for row in doc['rows']],
                          [('clean-local/lanes/W14-linked.md', 'prompt-shape')])
 
+    def test_ignored_prompt_uses_local_mtime_instead_of_old_git_history(self):
+        root = self.dir / 'clean-local'
+        prompt = root / 'lanes/W16-ignored.md'
+        prompt.write_text('# previously tracked\n')
+        subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+        subprocess.run(['git', 'add', '.'], cwd=root, check=True)
+        env = {**os.environ, 'GIT_AUTHOR_NAME': 'Test', 'GIT_AUTHOR_EMAIL': 'test@example.invalid',
+               'GIT_COMMITTER_NAME': 'Test', 'GIT_COMMITTER_EMAIL': 'test@example.invalid',
+               'GIT_AUTHOR_DATE': '2026-10-01T12:00:00Z',
+               'GIT_COMMITTER_DATE': '2026-10-01T12:00:00Z'}
+        subprocess.run(['git', 'commit', '-q', '-m', 'track prompt'], cwd=root, env=env, check=True)
+        subprocess.run(['git', 'rm', '-q', 'lanes/W16-ignored.md'], cwd=root, check=True)
+        (root / '.gitignore').write_text('lanes/W16-ignored.md\n')
+        subprocess.run(['git', 'add', '.gitignore'], cwd=root, check=True)
+        subprocess.run(['git', 'commit', '-q', '-m', 'ignore prompt'], cwd=root, env=env, check=True)
+        prompt.write_text('# malformed local prompt\n')
+        stamp = dt.datetime(2026, 11, 28, 12, tzinfo=dt.timezone.utc).timestamp()
+        os.utime(prompt, (stamp, stamp))
+        code, doc = self.audit('clean-local')
+        self.assertEqual(code, 1)
+        self.assertEqual([(row['file'], row['check']) for row in doc['rows']],
+                         [('clean-local/lanes/W16-ignored.md', 'prompt-shape')])
+
     def test_dangling_prompt_symlink_is_reported_without_crashing(self):
         link = self.dir / 'clean-local/lanes/W15-dangling.md'
         link.symlink_to(self.tmp / 'missing-prompt.md')
