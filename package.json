@@ -1,6 +1,6 @@
 {
   "name": "gambtho-skills",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Review, planning, PR and lane-coordination skills for Pi and Claude Code",
   "keywords": [
     "pi-package"

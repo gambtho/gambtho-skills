@@ -3,6 +3,15 @@
 All notable changes to this package are listed here. Versions follow
 [Semantic Versioning](https://semver.org/). Each release has a matching `v` tag.
 
+## [0.3.1] - 2026-11-28
+
+### Fixed
+
+- `coordinator.py audit` ignores old prompts after a coordinator folder move, gets
+  retired names from the fleet file and `--stale` only, and accepts angle-bracket
+  placeholders in launch templates. `--prompt-days` widens the seven-day prompt
+  window. (#9)
+
 ## [0.3.0] - 2026-11-28
 
 ### Added
