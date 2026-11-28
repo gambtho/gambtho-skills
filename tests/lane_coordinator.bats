@@ -1084,7 +1084,7 @@ PY
 review_path() {
   local tool
   mkdir -p "$TEST_ROOT/review-bin"
-  for tool in bash cat dirname; do
+  for tool in bash cat dirname grep; do
     ln -sf "$(command -v "$tool")" "$TEST_ROOT/review-bin/$tool"
   done
   printf '%s' "$STUB_BIN:$TEST_ROOT/review-bin"
@@ -1138,6 +1138,32 @@ review_path() {
   [ "$(cat "$TEST_ROOT/out.exit")" = 0 ]
   [ "$(head -5 "$TEST_ROOT/args" | tr '\n' ' ')" = "exec -- codex exec --skip-git-repo-check " ]
   grep -Fxq m1 "$TEST_ROOT/args"
+}
+
+@test "codex review fails when bwrap could not start the sandbox, though codex exited 0" {
+  printf 'find bugs\n' >"$TEST_ROOT/prompt.md"
+  local reviewer_path
+  reviewer_path=$(review_path)
+  stub_command codex 'cat >/dev/null; echo "I could not read the files."; echo "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted" >&2'
+  PATH="$reviewer_path" run bash "$SKILL_DIR/scripts/codex-review.sh" "$TEST_ROOT/prompt.md" "$TEST_ROOT/out"
+  [ "$status" -eq 69 ]
+  [ "$(cat "$TEST_ROOT/out.exit")" = 69 ]
+  [[ "$output" == *"Codex's sandbox could not run commands"* ]]
+  grep -q "codex sandbox -- true" "$TEST_ROOT/out.stderr"
+
+  # Another uid-map failure, and an output prefix that starts with a dash.
+  stub_command codex 'cat >/dev/null; echo "bwrap: setting up uid map: Permission denied" >&2'
+  (cd "$TEST_ROOT" && PATH="$reviewer_path" bash "$SKILL_DIR/scripts/codex-review.sh" prompt.md -out) || status=$?
+  [ "$(cat "$TEST_ROOT/-out.exit")" = 69 ]
+
+  # A nonzero codex exit is kept, and other bwrap lines or warnings leave a 0 alone.
+  stub_command codex 'cat >/dev/null; echo "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted" >&2; exit 4'
+  PATH="$reviewer_path" run bash "$SKILL_DIR/scripts/codex-review.sh" "$TEST_ROOT/prompt.md" "$TEST_ROOT/out"
+  [ "$status" -eq 4 ]
+  stub_command codex 'cat >/dev/null; echo findings; echo "warning: bubblewrap not on PATH" >&2; echo "bwrap: execvp foo: No such file or directory" >&2'
+  PATH="$reviewer_path" run bash "$SKILL_DIR/scripts/codex-review.sh" "$TEST_ROOT/prompt.md" "$TEST_ROOT/out"
+  [ "$status" -eq 0 ]
+  [ "$output" = 0 ]
 }
 
 @test "claude review sends the prompt on stdin with edit and shell tools disallowed" {
